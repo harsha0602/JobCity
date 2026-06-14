@@ -1,0 +1,118 @@
+{
+  "theme_archetype": {
+    "primary": "Archetype 7: Electric & Neon (Cyberpunk)",
+    "secondary": "Archetype 5: Luxury (Cinematic Lighting)",
+    "theme": "Dark",
+    "rationale": "The 3D immersive requirement, particularly the 'Applicants City' cyberpunk vibe and voxel aesthetic, demands a dark, technical, and gamified interface. Glass-morphic UI panels will sit atop the cinematic 3D canvas."
+  },
+  "typography": {
+    "headings": {
+      "family": "Unbounded, sans-serif",
+      "weights": ["400", "700", "900"],
+      "usage": "Hero titles, panel headers, city selection."
+    },
+    "body": {
+      "family": "Outfit, sans-serif",
+      "weights": ["300", "400", "600"],
+      "usage": "General text, descriptions, buttons."
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "weights": ["400", "700"],
+      "usage": "Data points, stats, commit-like counts, floors, code-like UI elements."
+    },
+    "rules": [
+      "Avoid Inter, Roboto, Arial.",
+      "Use strict tracking (-0.02em to -0.04em) on Unbounded for impact.",
+      "Data labels must be uppercase, tiny, wide-spaced (JetBrains Mono tracking-widest)."
+    ]
+  },
+  "colors": {
+    "ui_2d": {
+      "background": "#050505",
+      "panel_bg": "rgba(10, 10, 10, 0.6)",
+      "panel_border": "rgba(255, 255, 255, 0.08)",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#A0A0A0",
+      "accent_jobs": "#FF5F6D",
+      "accent_applicants": "#00FFCC",
+      "error": "#FF3B30",
+      "success": "#39FF14"
+    },
+    "scene_3d_jobs_city": {
+      "ambient_light": "#FFC371",
+      "directional_light": "#FF5F6D",
+      "sky_top": "#120E1F",
+      "sky_bottom": "#FF7B54",
+      "ground": "#1A1110",
+      "building_base": "#2A1F1D",
+      "building_highlight": "#FFB24C"
+    },
+    "scene_3d_applicants_city": {
+      "ambient_light": "#0B0C10",
+      "directional_light": "#00FFCC",
+      "sky_top": "#050510",
+      "sky_bottom": "#0A0A12",
+      "ground": "#0A0A0A",
+      "grid_lines": "rgba(0, 255, 204, 0.2)",
+      "building_base": "#12121A",
+      "building_highlight_1": "#00FFCC",
+      "building_highlight_2": "#FF007F"
+    }
+  },
+  "spacing_and_layout": {
+    "canvas": "The 3D canvas must cover 100vw and 100vh. position: fixed, z-index: 0.",
+    "ui_layer": "absolute inset-0 z-10 pointer-events-none. All interactive UI panels must have pointer-events-auto.",
+    "panels": "Use Shadcn Sheet or Card components positioned absolutely. Example: Job Details panel anchored to the right (w-full md:w-1/3 h-full).",
+    "bento_grid": "For 'Compare Applicants', use a 2x2 CSS grid overlay (gap-6) over the 3D scene, slightly scaled down to see the city in the background.",
+    "padding": "Generous. p-8 or p-12 for inner panel content."
+  },
+  "components": {
+    "glassmorphism": {
+      "classNames": "backdrop-blur-2xl bg-black/60 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+      "usage": "Apply to all floating UI panels, navbars, and stat cards."
+    },
+    "buttons": {
+      "primary": "Solid vibrant color (Jobs: #FF5F6D, Apps: #00FFCC) with black text. Hover: saturate-150 and scale up 1.05.",
+      "secondary": "Transparent glass with white 1px border. Hover: bg-white/10."
+    },
+    "interactive_3d": {
+      "hover": "Change building color to bright white/emissive on hover.",
+      "cursor": "Use a custom cursor style when hovering interactive 3D buildings (e.g., crosshair or custom SVG pointer)."
+    }
+  },
+  "tech_stack_and_3d": {
+    "libraries": [
+      "@react-three/fiber",
+      "@react-three/drei",
+      "framer-motion",
+      "three"
+    ],
+    "optimization": "CRITICAL: Use <InstancedMesh> for rendering hundreds of buildings in the voxel cities. Do not map over individual <mesh> components for every building, or performance will tank.",
+    "camera": "Use MapControls from Drei for isometric/city exploration, with smooth damping."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1613739519297-e7947a931ba4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxsb3clMjBwb2x5JTIwdm94ZWwlMjBjaXR5JTIwbmlnaHQlMjAzZCUyMHJlbmRlcnxlbnwwfHx8fDE3ODE0Njk5Mjd8MA&ixlib=rb-4.1.0&q=85",
+        "category": "hero_background_applicants",
+        "description": "Night aerial city view to serve as a loading screen or fallback hero for Applicants City."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1707531194853-4345288d3840?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwyfHxsb3clMjBwb2x5JTIwdm94ZWwlMjBjaXR5JTIwc3Vuc2V0JTIwM2QlMjByZW5kZXJ8ZW58MHx8fHwxNzgxNDY5OTI3fDA&ixlib=rb-4.1.0&q=85",
+        "category": "hero_background_jobs",
+        "description": "Sunset city view to serve as a loading screen or fallback hero for Jobs City."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Install dependencies: `yarn add @react-three/fiber @react-three/drei three framer-motion lucide-react`.",
+    "Set up two main route views: `/jobs-city` and `/applicants-city`.",
+    "The 3D Scene (`<Canvas>`) should be fixed at the root level, dynamically loading the Jobs or Applicants scene based on the route.",
+    "Use `<InstancedMesh>` for rendering buildings. The number of floors represents job count / application count (scale the Y axis and adjust Y position).",
+    "UI overlays must be built using Shadcn UI, customized with the glassmorphism utility classes provided in these guidelines.",
+    "Include `data-testid` on all interactive UI components.",
+    "In Jobs City, cluster buildings around specific coordinates to form a stylized USA map layout.",
+    "In Applicants City, layout buildings in a dark, abstract grid."
+  ]
+}
