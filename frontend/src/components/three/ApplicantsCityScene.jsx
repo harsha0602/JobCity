@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid } from "@react-three/drei";
 import ApplicantBuildings from "./ApplicantBuildings";
+import ApplicantRoads from "./ApplicantRoads";
 import { api } from "@/lib/api";
 
 export default function ApplicantsCityScene({ onApplicantClick, selectedIds = [], highlightId, query = "" }) {
@@ -61,6 +62,9 @@ export default function ApplicantsCityScene({ onApplicantClick, selectedIds = []
         infiniteGrid={false}
         followCamera={false}
       />
+
+      {/* Asphalt + neon grid streets between applicant buildings */}
+      <ApplicantRoads cells={24} spacing={2.4} roadWidth={0.6} />
 
       <Suspense fallback={null}>
         {applicants && (

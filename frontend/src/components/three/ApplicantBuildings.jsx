@@ -190,7 +190,8 @@ function ApplicantInstance({
 }) {
   const ref = useRef();
   const baseColor = useMemo(() => new THREE.Color(a.color), [a.color]);
-  const dimmedColor = useMemo(() => baseColor.clone().multiplyScalar(0.15), [baseColor]);
+  // Keep dim buildings visibly lit — mix toward base instead of crushing to ~0.
+  const dimmedColor = useMemo(() => baseColor.clone().multiplyScalar(0.6), [baseColor]);
   const selectedColor = useMemo(() => new THREE.Color("#00FFCC"), []);
   const highlightColor = useMemo(() => new THREE.Color("#FF007F"), []);
   const targetScale = useMemo(() => new THREE.Vector3(1, 1, 1), []);

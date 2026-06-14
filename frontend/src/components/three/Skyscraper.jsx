@@ -31,7 +31,8 @@ export default function Skyscraper({
 
   const tex = useMemo(() => getWindowTexture(), []);
   const baseColor = useMemo(() => new THREE.Color(color), [color]);
-  const dimmedColor = useMemo(() => baseColor.clone().multiplyScalar(0.15), [baseColor]);
+  // Dimmed skyscrapers should still be readable, not nearly black.
+  const dimmedColor = useMemo(() => baseColor.clone().multiplyScalar(0.55), [baseColor]);
   const highlightColor = useMemo(() => new THREE.Color("#ffffff"), []);
 
   useFrame((_, dt) => {
@@ -46,7 +47,7 @@ export default function Skyscraper({
       const targetCol = highlight ? baseColor : dim ? dimmedColor : baseColor;
       mat.color.lerp(targetCol, Math.min(1, dt * 6));
       mat.emissive.lerp(highlight ? highlightColor : targetCol, Math.min(1, dt * 6));
-      mat.emissiveIntensity = highlight ? 1.2 : dim ? 0.05 : 0.35;
+      mat.emissiveIntensity = highlight ? 1.2 : dim ? 0.22 : 0.35;
     });
     if (lightRef.current) {
       lightRef.current.intensity += ((highlight ? 6 : 0) - lightRef.current.intensity) * Math.min(1, dt * 6);
