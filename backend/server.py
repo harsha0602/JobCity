@@ -61,11 +61,23 @@ async def root():
 async def _startup():
     init_db()
     await setup_indexes()
+    # Start background ingestion scheduler (runs every 6h)
+    try:
+        from services.scheduler import start as start_scheduler
+        start_scheduler()
+        logger.info("background scheduler started")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("scheduler failed to start: %s", e)
     logger.info("JobCity API ready")
 
 
 @app.on_event("shutdown")
 async def _shutdown():
+    try:
+        from services.scheduler import stop as stop_scheduler
+        stop_scheduler()
+    except Exception:  # noqa: BLE001
+        pass
     from db import _client
     if _client:
         _client.close()

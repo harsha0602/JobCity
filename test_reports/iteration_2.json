@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration-2 end-to-end testing for JobCity. Validated all 6 new feature surfaces: (1) POST /api/admin/ingest/lever, (2) POST /api/admin/ingest/yc, (3) GET /api/admin/scheduler/status, (4) GitHub link/sync routes, (5) Claude Sonnet 4.5 /jobs/{id}/match-score with 24h cache, (6) Jobs-City InstancedMesh refactor + search-bar dimming. 11/11 new backend pytests pass; 14/14 prior backend tests still pass; frontend e2e on /jobs-city, /jobs/{id} and /profile all green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iteration2_results.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Lever ingestion returns ingested>0 across [palantir, reddit, lyft, stickermule, kong] boards.",
+    "YC ingestion (default limit=80) ingested>0 — verified via POST /api/admin/ingest/yc.",
+    "/api/admin/scheduler/status payload shape is exactly {running, last_run_at, last_counts, last_error} — matches spec.",
+    "GitHub link path correctly returns ok:true with an explicit non-empty 'warning' when the username is bogus AND commits=0 — verified.",
+    "GitHub link without auth correctly returns 401.",
+    "POST /api/jobs/{id}/match-score: Claude Sonnet 4.5 path returns a well-shaped {score:int 0-100, rationale:str, strengths:list, gaps:list}; second call within 24h returns cached:true with identical score. 404 returned for unknown job_id; 401 returned without auth (use a fresh requests.Session to avoid leaking cookies — note for next agent).",
+    "GET /api/jobs-city/buildings remains performant: <1s server-side. The InstancedMesh refactor does not regress the API contract.",
+    "Frontend /jobs-city: search input filters the 3D city visually (non-matches dim) without crashing the WebGL scene — verified by typing 'amazon' and screenshotting a clearly-dimmed map vs the un-queried baseline.",
+    "Frontend /jobs/{id}: match-score-btn redirects unauthed users to /login (returnTo preserved) and after login renders <match-result> with a numeric <match-score-value> plus rationale, STRENGTHS and GAPS lists.",
+    "Frontend /profile: github-link-form posts, stat-github updates in-place (no full page reload) and the linked '@torvalds' handle shows under the form, refresh button (github-sync-btn) appears once linked."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py (new pytest suite for iteration-2 features)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 new + 14/14 previous = 25/25 total)",
+    "frontend": "100% (jobs-city search/dim, jobs-city no-crash, /jobs/{id} match-score logged-out redirect, /jobs/{id} match-score logged-in result populated with score/rationale/strengths/gaps, /profile github-link-form updates stat-github + shows '@torvalds' under the form, no hard reload)"
+  },
+  "test_credentials": "demo@jobcity.app / Demo123! — verified usable for both backend pytest and Playwright login. Login form uses data-testid='login-submit-btn' (not get_by_role since the NavBar 'Sign in' button is also on the login page).",
+  "seed_data_creation": "Created/updated a match_scores cache document for the demo applicant against the first job from /api/jobs?limit=1. Updated demo applicant.github_username='torvalds'. Lever + YC ingestion added jobs to db.jobs (additive, non-destructive — re-runnable).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run backend pytest with: cd /app && REACT_APP_BACKEND_URL=https://hiring-map.preview.emergentagent.com python -m pytest backend/tests/ -v --junitxml=/app/test_reports/pytest/results.xml. For Playwright login, click data-testid='login-submit-btn' (the form is pre-filled with demo creds; avoid get_by_role('button', name='Sign in') because NavBar has the same label). Match-score response time is 1-6s typically. Note: rate-limit on GitHub public events API may make github_commits_30d=0 for valid users; the spec explicitly accepts this. The github_link_unauth fixture works only if the module-scoped requests.Session has not yet been authed — for unauth tests on routes that accept BOTH cookie + Bearer, use a fresh `requests.post()` rather than the shared session.",
+  "rca_of_the_issue": "N/A — no bugs found. One pytest false-negative was caught and fixed in the test itself: TestMatchScore::test_unauth originally reused the module-scoped requests.Session which still carried the demo's access_token cookie from a prior fixture, causing the 'unauth' POST to return 200. Switched to a bare `requests.post()` so no cookies are sent — now correctly asserts 401."
+}

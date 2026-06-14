@@ -199,3 +199,115 @@ async def ingest_greenhouse(db, boards: Iterable[str]) -> int:
                 if ok:
                     n += 1
     return n
+
+
+async def ingest_lever(db, boards: Iterable[str]) -> int:
+    """Ingest jobs from Lever public postings API (no auth)."""
+    n = 0
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for board in boards:
+            try:
+                r = await client.get(f"https://api.lever.co/v0/postings/{board}?mode=json")
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Lever %s failed: %s", board, e)
+                continue
+            if not isinstance(data, list):
+                continue
+            for job in data:
+                title = job.get("text") or "Engineer"
+                cats = job.get("categories") or {}
+                location = cats.get("location") or ""
+                city, state = _parse_location(location)
+                if not city or not state:
+                    continue
+                desc = job.get("descriptionPlain") or job.get("description") or ""
+                if "<" in desc and ">" in desc:
+                    import re
+                    desc = re.sub(r"<[^>]+>", " ", desc)
+                ts = job.get("createdAt")  # epoch ms
+                try:
+                    posted = (
+                        datetime.fromtimestamp(int(ts) / 1000, tz=timezone.utc)
+                        if ts else datetime.now(timezone.utc)
+                    )
+                except Exception:
+                    posted = datetime.now(timezone.utc)
+                company_name = board.replace("-", " ").title()
+                ok = await _upsert_job(
+                    db,
+                    source="lever",
+                    source_id=str(job.get("id") or job.get("lever_id") or title),
+                    company_name=company_name,
+                    title=title,
+                    city=city,
+                    state=state,
+                    description=desc.strip(),
+                    remote=("remote" in location.lower()),
+                    source_url=job.get("hostedUrl") or "",
+                    posted_at=posted,
+                )
+                if ok:
+                    n += 1
+    return n
+
+
+async def ingest_yc(db, limit: int = 60) -> int:
+    """Ingest YC / Hacker News 'Who's hiring' jobs via Algolia search API.
+    HN job posts use 'Company (YC W24) Is Hiring a Role' formatting and rarely
+    include a US city in the title, so we attempt to parse a location from the
+    title and otherwise default to San Francisco (YC's home) so the YC tower
+    appears on the map."""
+    n = 0
+    url = (
+        "https://hn.algolia.com/api/v1/search_by_date"
+        f"?tags=job&hitsPerPage={min(max(limit, 10), 200)}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(url)
+            r.raise_for_status()
+            data = r.json()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("YC/HN ingest failed: %s", e)
+        return 0
+
+    for hit in data.get("hits", []):
+        title_raw = (hit.get("title") or "").strip()
+        if not title_raw:
+            continue
+        # Strip "(YC ...)" tags
+        import re
+        company_match = re.match(r"^([^()|]+?)(?:\s*\(YC[^)]*\))?\s*(?:[|]|is hiring|Is Hiring|hiring|Hiring)", title_raw)
+        company_name = (company_match.group(1).strip() if company_match else title_raw.split("(")[0].strip())[:60] or "YC Startup"
+        # Role: take whatever comes after "Hiring" or after the first "|"
+        role_match = re.search(r"(?:is hiring|Is Hiring|hiring|Hiring)\s+(?:a |an )?(.+)$", title_raw, re.IGNORECASE)
+        title = (role_match.group(1).strip(" .|") if role_match else title_raw.split("|")[-1].strip())[:80] or "Engineer"
+
+        remote = "remote" in title_raw.lower()
+        city, state = _parse_location(title_raw)
+        if not city or not state:
+            city, state = ("San Francisco", "CA")  # default
+        ts = hit.get("created_at_i")
+        try:
+            posted = datetime.fromtimestamp(int(ts), tz=timezone.utc) if ts else datetime.now(timezone.utc)
+        except Exception:
+            posted = datetime.now(timezone.utc)
+        ok = await _upsert_job(
+            db,
+            source="yc",
+            source_id=str(hit.get("objectID") or title_raw),
+            company_name=company_name,
+            title=title,
+            city=city,
+            state=state,
+            description=(hit.get("story_text") or title_raw)[:1500],
+            remote=remote,
+            source_url=hit.get("url") or f"https://news.ycombinator.com/item?id={hit.get('objectID')}",
+            posted_at=posted,
+        )
+        if ok:
+            n += 1
+    return n

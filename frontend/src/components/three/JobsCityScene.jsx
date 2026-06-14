@@ -5,7 +5,7 @@ import USAMap from "./USAMap";
 import CompanyBuildings from "./CompanyBuildings";
 import { api } from "@/lib/api";
 
-export default function JobsCityScene({ onCompanyClick, selected }) {
+export default function JobsCityScene({ onCompanyClick, selected, query = "" }) {
   const [cities, setCities] = useState(null);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function JobsCityScene({ onCompanyClick, selected }) {
 
       <Suspense fallback={null}>
         <USAMap accent="#FFB24C" />
-        {cities && <CompanyBuildings cities={cities} onCompanyClick={onCompanyClick} selected={selected} />}
+        {cities && <CompanyBuildings cities={cities} onCompanyClick={onCompanyClick} selected={selected} query={query} />}
       </Suspense>
 
       <OrbitControls

@@ -1,8 +1,9 @@
 """Job-related routes including the 3D buildings aggregation."""
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
+from auth_utils import get_current_user
 from data.us_cities import lookup as city_lookup
 from db import get_db
 
@@ -107,3 +108,52 @@ async def jobs_city_buildings():
         )
     out.sort(key=lambda x: -x["total_jobs"])
     return {"cities": out}
+
+
+@router.post("/jobs/{job_id}/match-score")
+async def match_score(job_id: str, request: Request):
+    """LLM-powered match score (Claude Sonnet 4.5 via Emergent LLM key)."""
+    user = await get_current_user(request)
+    db = get_db()
+    job = await db.jobs.find_one({"job_id": job_id}, {"_id": 0})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    applicant = await db.applicants.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    if not applicant:
+        raise HTTPException(status_code=400, detail="No applicant profile")
+
+    # Cache by (applicant_id, job_id) for 24h to keep costs sane
+    from datetime import datetime, timezone, timedelta
+    cached = await db.match_scores.find_one(
+        {"applicant_id": applicant["applicant_id"], "job_id": job_id}, {"_id": 0}
+    )
+    if cached:
+        try:
+            created = datetime.fromisoformat(cached["created_at"])
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) - created < timedelta(hours=24):
+                return {"match": {k: cached[k] for k in ("score", "rationale", "strengths", "gaps")}, "cached": True}
+        except Exception:
+            pass
+
+    try:
+        from services.llm import job_match_score
+        result = await job_match_score(job=job, applicant=applicant)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"AI service error: {e}")
+
+    await db.match_scores.replace_one(
+        {"applicant_id": applicant["applicant_id"], "job_id": job_id},
+        {
+            "applicant_id": applicant["applicant_id"],
+            "job_id": job_id,
+            "score": result["score"],
+            "rationale": result["rationale"],
+            "strengths": result["strengths"],
+            "gaps": result["gaps"],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+        upsert=True,
+    )
+    return {"match": result, "cached": False}

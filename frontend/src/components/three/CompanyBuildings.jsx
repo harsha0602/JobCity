@@ -1,30 +1,30 @@
 import { useMemo, useRef, useState } from "react";
+import { Html, Instance, Instances } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { project } from "@/lib/projection";
 
 /**
- * Render company buildings clustered around each city center using a spiral layout.
+ * Render company buildings as a single InstancedMesh per the design guidelines.
+ * One draw call for hundreds of buildings, with per-instance hover/click.
  */
-export default function CompanyBuildings({ cities, onCompanyClick, selected }) {
+export default function CompanyBuildings({ cities, onCompanyClick, selected, query = "" }) {
+  const [hoverIdx, setHoverIdx] = useState(-1);
+
   const buildings = useMemo(() => {
     const out = [];
     for (const c of cities) {
       const [cx, cz] = project(c.lat, c.lng);
       const sorted = [...c.companies].sort((a, b) => b.floors - a.floors);
       sorted.forEach((co, i) => {
-        // Spiral placement around city center
-        const angle = i * 2.39996; // golden angle
+        const angle = i * 2.39996;
         const r = i === 0 ? 0 : Math.sqrt(i) * 2.2;
-        const x = cx + r * Math.cos(angle);
-        const z = cz + r * Math.sin(angle);
         out.push({
           ...co,
           city: c.city,
           state: c.state,
-          x,
-          z,
+          x: cx + r * Math.cos(angle),
+          z: cz + r * Math.sin(angle),
           height: Math.max(co.floors * 1.6, 1.6),
         });
       });
@@ -32,17 +32,66 @@ export default function CompanyBuildings({ cities, onCompanyClick, selected }) {
     return out;
   }, [cities]);
 
+  const q = (query || "").trim().toLowerCase();
+  const matchesQuery = (b) => {
+    if (!q) return true;
+    return (
+      b.name.toLowerCase().includes(q) ||
+      b.city.toLowerCase().includes(q) ||
+      b.state.toLowerCase().includes(q)
+    );
+  };
+
+  const hovered = hoverIdx >= 0 ? buildings[hoverIdx] : null;
+
   return (
     <group>
-      {buildings.map((b) => (
-        <Building
-          key={`${b.city}-${b.name}-${b.id}`}
-          building={b}
-          isSelected={selected && selected.id === b.id && selected.city === b.city}
-          onClick={() => onCompanyClick?.(b)}
+      <Instances limit={Math.max(buildings.length, 8)} castShadow receiveShadow>
+        <boxGeometry args={[1.6, 1, 1.6]} />
+        <meshStandardMaterial
+          vertexColors={false}
+          roughness={0.45}
+          metalness={0.15}
         />
-      ))}
-      {/* City label disks */}
+        {buildings.map((b, i) => (
+          <BuildingInstance
+            key={`${b.city}-${b.id}-${i}`}
+            b={b}
+            idx={i}
+            hovered={hoverIdx === i}
+            selected={selected && selected.id === b.id && selected.city === b.city}
+            dimmed={q ? !matchesQuery(b) : false}
+            onPointerOver={() => {
+              setHoverIdx(i);
+              document.body.style.cursor = "pointer";
+            }}
+            onPointerOut={() => {
+              setHoverIdx((cur) => (cur === i ? -1 : cur));
+              document.body.style.cursor = "";
+            }}
+            onClick={() => onCompanyClick?.(b)}
+          />
+        ))}
+      </Instances>
+
+      {hovered && (
+        <Html
+          position={[hovered.x, hovered.height + 0.8, hovered.z]}
+          center
+          style={{ pointerEvents: "none" }}
+        >
+          <div className="glass rounded-md px-3 py-2 text-xs whitespace-nowrap">
+            <div className="font-mono text-[10px] tracking-widest text-white/50">
+              {hovered.city.toUpperCase()}, {hovered.state}
+            </div>
+            <div className="font-semibold mt-0.5">{hovered.name}</div>
+            <div className="font-mono text-[11px]" style={{ color: hovered.color }}>
+              {hovered.floors} {hovered.floors === 1 ? "JOB" : "JOBS"}
+            </div>
+          </div>
+        </Html>
+      )}
+
       {cities.map((c) => {
         const [x, z] = project(c.lat, c.lng);
         return (
@@ -68,63 +117,40 @@ export default function CompanyBuildings({ cities, onCompanyClick, selected }) {
   );
 }
 
-function Building({ building, onClick, isSelected }) {
+function BuildingInstance({ b, idx, hovered, selected, dimmed, onPointerOver, onPointerOut, onClick }) {
   const ref = useRef();
-  const [hovered, setHovered] = useState(false);
+  // Color (animated to white-emissive when hovered/selected)
+  const targetScale = useMemo(() => new THREE.Vector3(1, 1, 1), []);
+  const color = useMemo(() => new THREE.Color(b.color || "#FFB24C"), [b.color]);
+  const dimmedColor = useMemo(() => color.clone().multiplyScalar(0.2), [color]);
+  const highlightColor = useMemo(() => new THREE.Color("#ffffff"), []);
 
   useFrame((_, dt) => {
     if (!ref.current) return;
-    const target = isSelected ? 1.08 : hovered ? 1.04 : 1.0;
-    ref.current.scale.x += (target - ref.current.scale.x) * Math.min(1, dt * 8);
-    ref.current.scale.z += (target - ref.current.scale.z) * Math.min(1, dt * 8);
+    const t = selected ? 1.12 : hovered ? 1.06 : 1.0;
+    targetScale.set(t, b.height, t);
+    ref.current.scale.lerp(targetScale, Math.min(1, dt * 8));
+    if (hovered || selected) ref.current.color.lerp(highlightColor, Math.min(1, dt * 6));
+    else if (dimmed) ref.current.color.lerp(dimmedColor, Math.min(1, dt * 4));
+    else ref.current.color.lerp(color, Math.min(1, dt * 6));
   });
 
-  const color = building.color || "#FFB24C";
-  const emissive = hovered || isSelected ? color : "#000000";
-
   return (
-    <group position={[building.x, 0, building.z]}>
-      <mesh
-        ref={ref}
-        position={[0, building.height / 2, 0]}
-        castShadow
-        receiveShadow
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick?.();
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setHovered(true);
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          setHovered(false);
-          document.body.style.cursor = "";
-        }}
-      >
-        <boxGeometry args={[1.6, building.height, 1.6]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={emissive}
-          emissiveIntensity={hovered || isSelected ? 0.55 : 0.05}
-          roughness={0.45}
-          metalness={0.15}
-        />
-      </mesh>
-      {hovered && (
-        <Html position={[0, building.height + 0.6, 0]} center style={{ pointerEvents: "none" }}>
-          <div className="glass rounded-md px-3 py-2 text-xs whitespace-nowrap">
-            <div className="font-mono text-[10px] tracking-widest text-white/50">
-              {building.city.toUpperCase()}, {building.state}
-            </div>
-            <div className="font-semibold mt-0.5">{building.name}</div>
-            <div className="font-mono text-[11px]" style={{ color: building.color }}>
-              {building.floors} {building.floors === 1 ? "JOB" : "JOBS"}
-            </div>
-          </div>
-        </Html>
-      )}
-    </group>
+    <Instance
+      ref={ref}
+      position={[b.x, b.height / 2, b.z]}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        onPointerOver?.();
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        onPointerOut?.();
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
+    />
   );
 }

@@ -26,7 +26,7 @@ export default function JobsCityPage() {
   return (
     <div className="fixed inset-0">
       <Suspense fallback={null}>
-        <JobsCityScene onCompanyClick={setSelected} selected={selected} />
+        <JobsCityScene onCompanyClick={setSelected} selected={selected} query={query} />
       </Suspense>
 
       {/* Floating search */}

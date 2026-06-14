@@ -1,9 +1,11 @@
 """Applicant routes including the 3D buildings payload and compare."""
+from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from auth_utils import get_current_user
 from db import get_db
 
 router = APIRouter(prefix="/api", tags=["applicants"])
@@ -97,6 +99,47 @@ async def applicants_city_buildings():
 
 class CompareIn(BaseModel):
     ids: list[str]
+
+
+class GithubLinkIn(BaseModel):
+    github_username: str
+
+
+@router.post("/applicants/me/github")
+async def link_github(body: GithubLinkIn, request: Request):
+    """Link a GitHub username + fetch public commit count (no OAuth needed)."""
+    user = await get_current_user(request)
+    db = get_db()
+    applicant = await db.applicants.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    if not applicant:
+        raise HTTPException(status_code=400, detail="No applicant profile")
+
+    from services.github import fetch_public_commits_30d
+    commits, err = await fetch_public_commits_30d(body.github_username)
+    update = {
+        "github_username": body.github_username.strip().lstrip("@") or None,
+        "github_commits_30d": commits,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.applicants.update_one({"applicant_id": applicant["applicant_id"]}, {"$set": update})
+    return {"ok": True, "github_username": update["github_username"], "github_commits_30d": commits, "warning": err}
+
+
+@router.post("/applicants/me/github/sync")
+async def sync_github(request: Request):
+    """Refresh commit count for the logged-in user's currently-linked GitHub username."""
+    user = await get_current_user(request)
+    db = get_db()
+    applicant = await db.applicants.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    if not applicant or not applicant.get("github_username"):
+        raise HTTPException(status_code=400, detail="Link a GitHub username first")
+    from services.github import fetch_public_commits_30d
+    commits, err = await fetch_public_commits_30d(applicant["github_username"])
+    await db.applicants.update_one(
+        {"applicant_id": applicant["applicant_id"]},
+        {"$set": {"github_commits_30d": commits, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "github_commits_30d": commits, "warning": err}
 
 
 @router.post("/applicants/compare")
