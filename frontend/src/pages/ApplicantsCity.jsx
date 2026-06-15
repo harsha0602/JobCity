@@ -1,7 +1,6 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ApplicantsCityScene from "@/components/three/ApplicantsCityScene";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
@@ -13,14 +12,25 @@ const SPACING = 2.4;
 export default function ApplicantsCityPage() {
   const { applicant: meApplicant } = useAuth();
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [applicants, setApplicants] = useState([]);
   const [focus, setFocus] = useState(null);
   const [compareIds, setCompareIds] = useState([]);
   const [query, setQuery] = useState("");
   const [flyTarget, setFlyTarget] = useState(null);
+  const autoFlyDoneRef = useRef(false);
 
   const handleApplicantsLoaded = useCallback((list) => setApplicants(list), []);
+
+  // ESC closes popup
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") setFocus(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Camera fly + open panel; pass `zoom` to control how close the camera lands.
   const flyToBuilding = (a, { zoom = "close" } = {}) => {
@@ -55,13 +65,25 @@ export default function ApplicantsCityPage() {
     return applicants.find((a) => a.id === meApplicant.applicant_id);
   }, [applicants, meApplicant]);
 
-  const navigateToMe = () => {
+  const navigateToMe = useCallback(() => {
     if (!myBuilding) {
       toast.error("Couldn't find your tower yet.");
       return;
     }
     flyToBuilding(myBuilding, { zoom: "medium" });
-  };
+  }, [myBuilding]);
+
+  // Auto-navigate when ?navigate=me is present and the user's building is loaded
+  useEffect(() => {
+    if (autoFlyDoneRef.current) return;
+    if (searchParams.get("navigate") !== "me") return;
+    if (!myBuilding) return;
+    autoFlyDoneRef.current = true;
+    navigateToMe();
+    // Clear query so refresh doesn't repeat the fly
+    searchParams.delete("navigate");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams, myBuilding, navigateToMe]);
 
   // Search → find first match, fly to it
   const onSearchSubmit = (e) => {
@@ -229,165 +251,164 @@ function ApplicantSidePanel({ applicant, onClose, onAddCompare, inCompareSet, co
   const apps = applicant.floors;
 
   return (
-    <Sheet open={!!applicant} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        data-testid="applicant-side-panel"
-        side="right"
-        className="bg-[#0a1a10]/95 backdrop-blur-2xl border-l border-[#5BE3A3]/15 text-white w-full sm:max-w-sm p-0 overflow-y-auto"
+    <div
+      data-testid="applicant-side-panel"
+      className="pointer-events-auto fixed top-20 right-4 z-30 w-[340px] max-h-[calc(100vh-100px)] overflow-y-auto rounded-xl bg-[#0a1a10]/95 backdrop-blur-2xl border border-[#5BE3A3]/15 text-white animate-in fade-in slide-in-from-right-4 duration-300"
+    >
+      {/* Top close + ESC hint */}
+      <button
+        onClick={onClose}
+        data-testid="popup-close-btn"
+        className="absolute top-3 right-3 label-mono text-white/40 hover:text-white text-[10px] tracking-widest"
       >
-        {/* Top ESC hint */}
-        <div className="absolute top-3 right-4 label-mono text-white/40">ESC</div>
+        ESC ×
+      </button>
 
-        {/* Header */}
-        <div className="px-5 pt-6">
-          <div className="flex items-center gap-3">
+      {/* Header */}
+      <div className="px-5 pt-6 pb-6">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center font-[Unbounded] text-2xl font-black border-2"
+            style={{
+              background: `radial-gradient(circle at 30% 30%, ${color}, #0a1a10)`,
+              borderColor: color,
+              color: "#0b1a10",
+              boxShadow: `0 0 24px ${color}66`,
+            }}
+            data-testid="applicant-avatar-block"
+          >
+            {applicant.display_name?.[0] || "?"}
+          </div>
+          <div className="flex-1 min-w-0">
             <div
-              className="w-14 h-14 rounded-full flex items-center justify-center font-[Unbounded] text-2xl font-black border-2"
-              style={{
-                background: `radial-gradient(circle at 30% 30%, ${color}, #0a1a10)`,
-                borderColor: color,
-                color: "#0b1a10",
-                boxShadow: `0 0 24px ${color}66`,
-              }}
-              data-testid="applicant-avatar-block"
+              className="font-[Unbounded] text-lg font-bold tracking-wide uppercase truncate"
+              data-testid="applicant-name"
             >
-              {applicant.display_name?.[0] || "?"}
+              {applicant.display_name}
             </div>
-            <div className="flex-1 min-w-0">
-              <div
-                className="font-[Unbounded] text-lg font-bold tracking-wide uppercase truncate"
-                data-testid="applicant-name"
-              >
-                {applicant.display_name}
+            <div className="font-mono text-xs text-white/55 truncate">@{handle}</div>
+            {title && (
+              <div className="font-mono text-[10px] tracking-widest mt-0.5" style={{ color: "#FF6B6B" }}>
+                {title}
               </div>
-              <div className="font-mono text-xs text-white/55 truncate">@{handle}</div>
-              {title && (
-                <div
-                  className="font-mono text-[10px] tracking-widest mt-0.5"
-                  style={{ color: "#FF6B6B" }}
-                >
-                  {title}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Level / experience bar */}
-          <div className="mt-4 flex items-center gap-2">
-            <div
-              className="w-8 h-8 rounded border-2 flex items-center justify-center font-mono text-sm font-bold"
-              style={{ borderColor: "#5BE3A3", color: "#5BE3A3" }}
-            >
-              {apps >= 8 ? "S" : apps >= 4 ? "A" : "B"}
-            </div>
-            <div className="flex-1">
-              <div className="label-mono text-[10px] text-white/50 mb-0.5">
-                {applicant.experience_level.toUpperCase()} · {apps >= 8 ? "POWER USER" : "BUILDING UP"}
-              </div>
-              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(apps * 10, 100)}%`,
-                    background: "linear-gradient(90deg, #5BE3A3, #FFD23F)",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Role/tag */}
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            <span
-              className="px-2.5 py-1 rounded text-[10px] font-mono tracking-widest uppercase border"
-              style={{ borderColor: "#FF6B6B", color: "#FF6B6B", background: "#FF6B6B22" }}
-            >
-              {applicant.experience_level}
-            </span>
-            {applicant.has_github && (
-              <span className="px-2.5 py-1 rounded text-[10px] font-mono tracking-widest uppercase border border-[#5BE3A3]/40 text-[#5BE3A3] bg-[#5BE3A3]/10">
-                GitHub
-              </span>
-            )}
-          </div>
-
-          {/* Stat grid (3 cols x 2 rows) */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <StatTile label="APPS" value={apps} testid="applicant-applications-count" />
-            <StatTile label="COMMITS/30D" value={commits} />
-            <StatTile label="SKILLS" value={skills.length || (loading ? "…" : 0)} />
-            <StatTile label="LEVEL" value={apps >= 8 ? "S" : apps >= 4 ? "A" : "B"} />
-            <StatTile label="STATUS" value={apps >= 8 ? "HOT" : "—"} />
-            <StatTile label="HIRABLE" value={skills.length >= 3 ? "YES" : "—"} />
-          </div>
-
-          {/* Skills chips */}
-          <div className="mt-4">
-            <div className="label-mono text-white/50">SKILLS</div>
-            {loading ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <div className="h-5 w-12 bg-white/5 rounded animate-pulse" />
-                <div className="h-5 w-16 bg-white/5 rounded animate-pulse" />
-                <div className="h-5 w-10 bg-white/5 rounded animate-pulse" />
-              </div>
-            ) : skills.length === 0 ? (
-              <div className="mt-1 text-white/40 text-sm">— not provided</div>
-            ) : (
-              <div className="mt-2 flex flex-wrap gap-1.5" data-testid="applicant-skills-list">
-                {skills.map((s) => (
-                  <span
-                    key={s}
-                    className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#5BE3A3]/10 text-[#5BE3A3] border border-[#5BE3A3]/30"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="mt-5 space-y-2 pb-6">
-            {resumeUrl ? (
-              <a
-                data-testid="applicant-resume-link"
-                href={resumeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center py-3 rounded font-mono text-xs tracking-widest uppercase bg-[#FFD23F] text-black hover:bg-[#FFD23F]/90 transition"
-              >
-                View Resume ↗
-              </a>
-            ) : (
-              <div className="block w-full text-center py-3 rounded font-mono text-xs tracking-widest uppercase bg-white/5 text-white/30 cursor-not-allowed">
-                No resume linked
-              </div>
-            )}
-            <Button
-              data-testid="add-to-compare-btn"
-              onClick={onAddCompare}
-              disabled={inCompareSet || compareFull}
-              className="w-full rounded font-mono text-xs tracking-widest uppercase bg-transparent border border-white/15 text-white hover:bg-white/5 disabled:opacity-40"
-            >
-              {inCompareSet ? "In compare" : compareFull ? "Compare full" : "+ Compare"}
-            </Button>
-            {applicant.has_github && (
-              <a
-                href={`https://github.com/${detail?.github_username || handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center py-3 rounded font-mono text-xs tracking-widest uppercase bg-transparent border border-white/15 text-white hover:bg-white/5"
-              >
-                GitHub ↗
-              </a>
             )}
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+
+        {/* Level bar */}
+        <div className="mt-4 flex items-center gap-2">
+          <div
+            className="w-8 h-8 rounded border-2 flex items-center justify-center font-mono text-sm font-bold"
+            style={{ borderColor: "#5BE3A3", color: "#5BE3A3" }}
+          >
+            {apps >= 8 ? "S" : apps >= 4 ? "A" : "B"}
+          </div>
+          <div className="flex-1">
+            <div className="label-mono text-[10px] text-white/50 mb-0.5">
+              {applicant.experience_level.toUpperCase()} · {apps >= 8 ? "POWER USER" : "BUILDING UP"}
+            </div>
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(apps * 10, 100)}%`,
+                  background: "linear-gradient(90deg, #5BE3A3, #FFD23F)",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          <span
+            className="px-2.5 py-1 rounded text-[10px] font-mono tracking-widest uppercase border"
+            style={{ borderColor: "#FF6B6B", color: "#FF6B6B", background: "#FF6B6B22" }}
+          >
+            {applicant.experience_level}
+          </span>
+          {applicant.has_github && (
+            <span className="px-2.5 py-1 rounded text-[10px] font-mono tracking-widest uppercase border border-[#5BE3A3]/40 text-[#5BE3A3] bg-[#5BE3A3]/10">
+              GitHub
+            </span>
+          )}
+        </div>
+
+        {/* Stat grid */}
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <StatTile label="APPS" value={apps} testid="applicant-applications-count" />
+          <StatTile label="COMMITS/30D" value={commits} />
+          <StatTile label="SKILLS" value={skills.length || (loading ? "…" : 0)} />
+          <StatTile label="LEVEL" value={apps >= 8 ? "S" : apps >= 4 ? "A" : "B"} />
+          <StatTile label="STATUS" value={apps >= 8 ? "HOT" : "—"} />
+          <StatTile label="HIRABLE" value={skills.length >= 3 ? "YES" : "—"} />
+        </div>
+
+        {/* Skills */}
+        <div className="mt-4">
+          <div className="label-mono text-white/50">SKILLS</div>
+          {loading ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="h-5 w-12 bg-white/5 rounded animate-pulse" />
+              <div className="h-5 w-16 bg-white/5 rounded animate-pulse" />
+              <div className="h-5 w-10 bg-white/5 rounded animate-pulse" />
+            </div>
+          ) : skills.length === 0 ? (
+            <div className="mt-1 text-white/40 text-sm">— not provided</div>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-1.5" data-testid="applicant-skills-list">
+              {skills.map((s) => (
+                <span
+                  key={s}
+                  className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#5BE3A3]/10 text-[#5BE3A3] border border-[#5BE3A3]/30"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="mt-5 space-y-2">
+          {resumeUrl ? (
+            <a
+              data-testid="applicant-resume-link"
+              href={resumeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center py-3 rounded font-mono text-xs tracking-widest uppercase bg-[#FFD23F] text-black hover:bg-[#FFD23F]/90 transition"
+            >
+              View Resume ↗
+            </a>
+          ) : (
+            <div className="block w-full text-center py-3 rounded font-mono text-xs tracking-widest uppercase bg-white/5 text-white/30 cursor-not-allowed">
+              No resume linked
+            </div>
+          )}
+          <Button
+            data-testid="add-to-compare-btn"
+            onClick={onAddCompare}
+            disabled={inCompareSet || compareFull}
+            className="w-full rounded font-mono text-xs tracking-widest uppercase bg-transparent border border-white/15 text-white hover:bg-white/5 disabled:opacity-40"
+          >
+            {inCompareSet ? "In compare" : compareFull ? "Compare full" : "+ Compare"}
+          </Button>
+          {applicant.has_github && (
+            <a
+              href={`https://github.com/${detail?.github_username || handle}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center py-3 rounded font-mono text-xs tracking-widest uppercase bg-transparent border border-white/15 text-white hover:bg-white/5"
+            >
+              GitHub ↗
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
-
 function StatTile({ label, value, testid }) {
   return (
     <div

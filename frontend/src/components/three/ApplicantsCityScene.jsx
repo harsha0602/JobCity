@@ -12,7 +12,7 @@ const SPACING = 2.4;
  * Smoothly flies the camera + orbit-controls target to a (x, z) point
  * when `flyTarget` changes. Used by "Navigate to my building".
  */
-function CameraFly({ flyTarget, controlsRef }) {
+function CameraFly({ flyTarget, focusedWorldPos, controlsRef }) {
   const { camera } = useThree();
   const tweenRef = useRef(null);
 
@@ -21,26 +21,45 @@ function CameraFly({ flyTarget, controlsRef }) {
     const [tx, tz, zoom] = flyTarget;
     const startPos = camera.position.clone();
     const startTarget = controlsRef.current?.target?.clone() || new THREE.Vector3(0, 0, 0);
-    // "close" = right next to the tower (selection view), "medium" = overview
     const offsets = zoom === "close"
       ? { dx: 4, dy: 8, dz: 6, ty: 3 }
       : { dx: 8, dy: 14, dz: 12, ty: 2 };
     const endTarget = new THREE.Vector3(tx, offsets.ty, tz);
     const endPos = new THREE.Vector3(tx + offsets.dx, offsets.dy, tz + offsets.dz);
     tweenRef.current = { t: 0, startPos, endPos, startTarget, endTarget };
+    // Pause auto-rotate while tweening
+    if (controlsRef.current) controlsRef.current.autoRotate = false;
   }, [flyTarget, camera, controlsRef]);
+
+  // Keep orbit target locked to the focused building so the autoRotate
+  // happens AROUND that tower (the user can also drag freely).
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    if (focusedWorldPos) {
+      controlsRef.current.autoRotate = true;
+      controlsRef.current.autoRotateSpeed = 0.6;
+    } else {
+      controlsRef.current.autoRotate = false;
+    }
+  }, [focusedWorldPos, controlsRef]);
 
   useFrame((_, dt) => {
     const w = tweenRef.current;
     if (!w) return;
     w.t = Math.min(1, w.t + dt * 0.8);
-    const e = 1 - Math.pow(1 - w.t, 3); // ease-out cubic
+    const e = 1 - Math.pow(1 - w.t, 3);
     camera.position.lerpVectors(w.startPos, w.endPos, e);
     if (controlsRef.current) {
       controlsRef.current.target.lerpVectors(w.startTarget, w.endTarget, e);
       controlsRef.current.update();
     }
-    if (w.t >= 1) tweenRef.current = null;
+    if (w.t >= 1) {
+      tweenRef.current = null;
+      // Resume auto-rotate around the focused tower
+      if (controlsRef.current && focusedWorldPos) {
+        controlsRef.current.autoRotate = true;
+      }
+    }
   });
   return null;
 }
@@ -66,6 +85,13 @@ export default function ApplicantsCityScene({
       })
       .catch(() => setApplicants([]));
   }, [onApplicantsLoaded]);
+
+  const focusedWorldPos = useMemo(() => {
+    if (!focusId || !applicants) return null;
+    const f = applicants.find((a) => a.id === focusId);
+    if (!f) return null;
+    return [f.grid_x * SPACING, 0, f.grid_z * SPACING];
+  }, [focusId, applicants]);
 
   const initialCamera = useMemo(() => [25, 35, 40], []);
 
@@ -140,7 +166,7 @@ export default function ApplicantsCityScene({
         )}
       </Suspense>
 
-      <CameraFly flyTarget={flyTarget} controlsRef={controlsRef} />
+      <CameraFly flyTarget={flyTarget} focusedWorldPos={focusedWorldPos} controlsRef={controlsRef} />
 
       <OrbitControls
         ref={controlsRef}

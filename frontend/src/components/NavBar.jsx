@@ -33,9 +33,24 @@ export default function NavBar() {
               Applicants City
             </NavLink>
             {user && user !== false && (
-              <NavLink to="/profile" data-testid="nav-profile" className={linkCls}>
-                Profile
-              </NavLink>
+              <>
+                <NavLink
+                  to="/applicants-city?navigate=me"
+                  data-testid="nav-profile"
+                  className={({ isActive }) =>
+                    `${linkCls({ isActive: false })} ${
+                      location.pathname === "/applicants-city" && location.search.includes("navigate=me")
+                        ? "bg-white/10 text-white"
+                        : ""
+                    }`
+                  }
+                >
+                  My Tower
+                </NavLink>
+                <NavLink to="/profile" data-testid="nav-edit-profile" className={linkCls}>
+                  Edit profile
+                </NavLink>
+              </>
             )}
           </div>
           <div className="flex items-center gap-2">

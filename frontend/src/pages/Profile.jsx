@@ -7,19 +7,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast, Toaster } from "sonner";
 
+const TITLE_SUGGESTIONS = [
+  "Software Engineer",
+  "Frontend Engineer",
+  "Backend Engineer",
+  "Full Stack Engineer",
+  "ML Engineer",
+  "Data Scientist",
+  "Robotics Engineer",
+  "DevOps Engineer",
+  "Mobile Engineer",
+  "Product Designer",
+];
+
 export default function ProfilePage() {
   const { user, applicant, refresh } = useAuth();
   const [apps, setApps] = useState([]);
   const [gh, setGh] = useState("");
   const [linking, setLinking] = useState(false);
 
+  // Editable profile state
+  const [title, setTitle] = useState("");
+  const [skills, setSkills] = useState([]);
+  const [skillInput, setSkillInput] = useState("");
+  const [resumeUrl, setResumeUrl] = useState("");
+  const [experience, setExperience] = useState("entry");
+  const [savingProfile, setSavingProfile] = useState(false);
+
   useEffect(() => {
     api.get("/applications/mine").then((r) => setApps(r.data.items)).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (applicant?.github_username) setGh(applicant.github_username);
-  }, [applicant?.github_username]);
+    if (!applicant) return;
+    setGh(applicant.github_username || "");
+    setTitle(applicant.title || "");
+    setSkills(applicant.skills || []);
+    setResumeUrl(applicant.resume_url || "");
+    setExperience(applicant.experience_level || "entry");
+  }, [applicant]);
 
   if (!user) return <div className="pt-32 text-center text-white/60 label-mono">LOADING…</div>;
 
@@ -49,6 +75,41 @@ export default function ProfilePage() {
       toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
     } finally {
       setLinking(false);
+    }
+  };
+
+  const addSkill = (raw) => {
+    const s = raw.trim();
+    if (!s || skills.includes(s) || skills.length >= 20) return;
+    setSkills([...skills, s]);
+  };
+
+  const onSkillKey = (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addSkill(skillInput);
+      setSkillInput("");
+    } else if (e.key === "Backspace" && !skillInput && skills.length) {
+      setSkills(skills.slice(0, -1));
+    }
+  };
+
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      await api.patch("/applicants/me", {
+        title,
+        skills,
+        resume_url: resumeUrl,
+        experience_level: experience,
+      });
+      toast.success("Profile updated.");
+      await refresh();
+    } catch (err) {
+      toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -85,13 +146,132 @@ export default function ProfilePage() {
           <div className="mt-6">
             <Link
               data-testid="my-building-link"
-              to={`/applicants/${applicant.applicant_id}`}
+              to="/applicants-city?navigate=me"
               className="inline-block text-[#00FFCC] underline-offset-4 hover:underline"
             >
-              View my building in Applicants City →
+              View my tower in Applicants City →
             </Link>
           </div>
         )}
+
+        {/* Editable profile fields */}
+        <form
+          data-testid="profile-edit-form"
+          onSubmit={saveProfile}
+          className="mt-6 glass rounded-3xl p-7 space-y-5"
+        >
+          <div>
+            <div className="label-mono">EDIT PROFILE</div>
+            <h2 className="text-xl font-bold mt-1">Title, skills & resume</h2>
+            <p className="text-white/60 text-sm mt-1">
+              Everything below is optional. Update what you want, click save.
+            </p>
+          </div>
+
+          <div>
+            <Label className="label-mono text-white/50">TITLE</Label>
+            <Input
+              data-testid="profile-title-input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Software Engineer"
+              className="mt-1 bg-black/40 border-white/10 text-white"
+            />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {TITLE_SUGGESTIONS.map((s) => (
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => setTitle(s)}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-mono bg-white/5 hover:bg-white/10 text-white/60 border border-white/10"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className="label-mono text-white/50">EXPERIENCE</Label>
+            <div className="mt-2 flex gap-2">
+              {[
+                { v: "entry", label: "ENTRY" },
+                { v: "mid", label: "MID" },
+                { v: "senior", label: "SENIOR" },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  data-testid={`profile-exp-${opt.v}-btn`}
+                  onClick={() => setExperience(opt.v)}
+                  className={`px-4 py-2 rounded-full text-xs font-mono tracking-widest border transition ${
+                    experience === opt.v
+                      ? "bg-[#00FFCC] text-black border-[#00FFCC]"
+                      : "bg-transparent border-white/15 text-white/70 hover:bg-white/5"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className="label-mono text-white/50">SKILLS</Label>
+            <div className="mt-1 bg-black/40 border border-white/10 rounded-md px-2 py-1.5 min-h-[44px] flex flex-wrap gap-1.5 items-center">
+              {skills.map((s) => (
+                <span
+                  key={s}
+                  className="px-2.5 py-1 rounded-full text-xs font-mono bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30 flex items-center gap-1.5"
+                >
+                  {s}
+                  <button
+                    type="button"
+                    onClick={() => setSkills(skills.filter((x) => x !== s))}
+                    className="text-[#00FFCC]/70 hover:text-white"
+                    aria-label={`Remove ${s}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                data-testid="profile-skill-input"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                onKeyDown={onSkillKey}
+                onBlur={() => {
+                  addSkill(skillInput);
+                  setSkillInput("");
+                }}
+                placeholder={skills.length ? "" : "React, FastAPI, ML… (Enter to add)"}
+                className="flex-1 min-w-[140px] bg-transparent outline-none text-white text-sm placeholder:text-white/30 py-1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className="label-mono text-white/50">RESUME LINK</Label>
+            <Input
+              data-testid="profile-resume-input"
+              value={resumeUrl}
+              onChange={(e) => setResumeUrl(e.target.value)}
+              placeholder="https:// · Google Drive, Notion, personal site…"
+              className="mt-1 bg-black/40 border-white/10 text-white"
+            />
+          </div>
+
+          <div>
+            <Button
+              data-testid="profile-save-btn"
+              type="submit"
+              disabled={savingProfile}
+              className="btn-applicants rounded-full px-6"
+            >
+              {savingProfile ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </form>
 
         <form onSubmit={onLinkGithub} className="mt-6 glass rounded-3xl p-7" data-testid="github-link-form">
           <div className="label-mono">LINK GITHUB</div>
