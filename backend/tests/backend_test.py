@@ -244,3 +244,48 @@ class TestAdmin:
         r2 = session.post(f"{API}/admin/seed")
         assert r2.status_code == 200
         assert isinstance(r2.json(), dict)
+
+
+# ---------------- AI Job Brief (iteration 4) ----------------
+
+class TestJobBrief:
+    """Iteration-4 AI role brief endpoint (no auth required, 7d cache)."""
+
+    def _pick_job_id(self, session):
+        r = session.get(f"{API}/jobs", params={"limit": 5})
+        assert r.status_code == 200
+        items = r.json().get("items", [])
+        assert items, "no jobs returned"
+        return items[0].get("job_id") or items[0].get("id")
+
+    def test_brief_no_auth(self, session):
+        job_id = self._pick_job_id(session)
+        # explicit fresh request without auth
+        r = requests.get(f"{API}/jobs/{job_id}/summary", timeout=25)
+        assert r.status_code == 200, f"expected 200 without auth, got {r.status_code} {r.text}"
+        body = r.json()
+        assert "brief" in body and "cached" in body
+        brief = body["brief"]
+        assert isinstance(brief.get("summary"), str) and len(brief["summary"]) > 0
+        assert isinstance(brief.get("required_skills"), list)
+        assert isinstance(brief.get("nice_to_have"), list)
+        assert isinstance(brief.get("seniority"), str) and len(brief["seniority"]) > 0
+
+    def test_brief_cached_on_second_call(self, session):
+        job_id = self._pick_job_id(session)
+        r1 = requests.get(f"{API}/jobs/{job_id}/summary", timeout=25)
+        assert r1.status_code == 200
+        b1 = r1.json()
+        # second call should be (almost) instant and cached=True
+        t0 = time.time()
+        r2 = requests.get(f"{API}/jobs/{job_id}/summary", timeout=10)
+        dt = time.time() - t0
+        assert r2.status_code == 200
+        b2 = r2.json()
+        assert b2.get("cached") is True, f"expected cached:true on 2nd call, got: {b2}"
+        assert b2["brief"]["summary"] == b1["brief"]["summary"]
+        assert dt < 5.0, f"cached call too slow: {dt:.2f}s"
+
+    def test_brief_404_for_missing_job(self, session):
+        r = requests.get(f"{API}/jobs/job_doesnotexist/summary", timeout=10)
+        assert r.status_code == 404

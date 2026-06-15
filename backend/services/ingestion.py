@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _company_id(name: str) -> str:
-    return f"co_{hashlib.md5(name.encode()).hexdigest()[:10]}"
+    return f"co_{hashlib.md5(name.encode(), usedforsecurity=False).hexdigest()[:10]}"
 
 
 def _slug(s: str) -> str:
@@ -22,7 +22,7 @@ def _slug(s: str) -> str:
 
 
 def _color_for(name: str) -> str:
-    h = hashlib.md5(name.encode()).hexdigest()
+    h = hashlib.md5(name.encode(), usedforsecurity=False).hexdigest()
     return f"#{h[:6]}"
 
 
@@ -80,7 +80,7 @@ async def _upsert_job(db, *, source: str, source_id: str, company_name: str, tit
     # fetch color
     company = await db.companies.find_one({"company_id": company_id}, {"_id": 0})
     color = company.get("color_hex") if company else _color_for(company_name)
-    job_id = f"job_{hashlib.md5(f'{source}|{source_id}'.encode()).hexdigest()[:14]}"
+    job_id = f"job_{hashlib.md5(f'{source}|{source_id}'.encode(), usedforsecurity=False).hexdigest()[:14]}"
     await db.jobs.replace_one(
         {"job_id": job_id},
         {

@@ -55,14 +55,11 @@ export default function CompanyBuildings({ cities, onCompanyClick, selected, que
       <Instances limit={Math.max(regular.length, 8)} castShadow receiveShadow>
         <boxGeometry args={[1.6, 1, 1.6]} />
         <meshStandardMaterial
-          map={tex}
           emissiveMap={tex}
-          emissive="#000000"
-          emissiveIntensity={0.35}
+          emissive="#222222"
+          emissiveIntensity={0.65}
           roughness={0.55}
           metalness={0.1}
-          map-repeat-x={2}
-          map-repeat-y={3}
           emissiveMap-repeat-x={2}
           emissiveMap-repeat-y={3}
         />

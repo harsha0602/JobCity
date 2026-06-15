@@ -60,14 +60,11 @@ export default function ApplicantBuildings({
       <Instances limit={Math.max(regular.length, 8)} castShadow receiveShadow>
         <boxGeometry args={[1.3, 1, 1.3]} />
         <meshStandardMaterial
-          map={tex}
           emissiveMap={tex}
-          emissive="#000000"
-          emissiveIntensity={0.45}
-          roughness={0.35}
-          metalness={0.4}
-          map-repeat-x={2}
-          map-repeat-y={3}
+          emissive="#222222"
+          emissiveIntensity={0.85}
+          roughness={0.3}
+          metalness={0.5}
           emissiveMap-repeat-x={2}
           emissiveMap-repeat-y={3}
         />
@@ -190,7 +187,7 @@ function ApplicantInstance({
 }) {
   const ref = useRef();
   const baseColor = useMemo(() => new THREE.Color(a.color), [a.color]);
-  const dimmedColor = useMemo(() => baseColor.clone().multiplyScalar(0.15), [baseColor]);
+  const dimmedColor = useMemo(() => baseColor.clone().multiplyScalar(0.45), [baseColor]);
   const selectedColor = useMemo(() => new THREE.Color("#00FFCC"), []);
   const highlightColor = useMemo(() => new THREE.Color("#FF007F"), []);
   const targetScale = useMemo(() => new THREE.Vector3(1, 1, 1), []);

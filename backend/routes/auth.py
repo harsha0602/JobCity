@@ -57,7 +57,7 @@ async def _ensure_applicant_profile(db, user_id: str, display_name: str, *, pict
     import hashlib
 
     # MongoDB stores 8-byte ints; truncate the md5 hash to 8 hex chars (32-bit) to stay safe.
-    seed = int(hashlib.md5(user_id.encode()).hexdigest()[:8], 16)
+    seed = int(hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest()[:8], 16)
     applicant_id = f"app_{user_id.replace('user_', '')}"
     doc = {
         "applicant_id": applicant_id,

@@ -1,8 +1,34 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Grid } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import ApplicantBuildings from "./ApplicantBuildings";
 import { api } from "@/lib/api";
+import { getRoadTexture } from "@/lib/roadTex";
+
+const GROUND_SIZE = 140;
+
+function CityGround() {
+  const tex = useMemo(() => {
+    const t = getRoadTexture();
+    // Match repeat to ground size so each "tile" covers a 4x4 grid of slots (~10 units per tile)
+    t.repeat.set(GROUND_SIZE / 10, GROUND_SIZE / 10);
+    return t;
+  }, []);
+
+  return (
+    <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+      <planeGeometry args={[GROUND_SIZE, GROUND_SIZE]} />
+      <meshStandardMaterial
+        map={tex}
+        emissiveMap={tex}
+        emissive="#00FFCC"
+        emissiveIntensity={0.18}
+        roughness={0.85}
+        metalness={0.1}
+      />
+    </mesh>
+  );
+}
 
 export default function ApplicantsCityScene({ onApplicantClick, selectedIds = [], highlightId, query = "" }) {
   const [applicants, setApplicants] = useState(null);
@@ -26,10 +52,10 @@ export default function ApplicantsCityScene({ onApplicantClick, selectedIds = []
       <color attach="background" args={["#050510"]} />
       <fog attach="fog" args={["#050510", 60, 180]} />
 
-      <hemisphereLight args={["#0B0C10", "#000000", 0.4]} />
+      <hemisphereLight args={["#0B0C10", "#000000", 0.6]} />
       <directionalLight
         position={[30, 60, 20]}
-        intensity={0.8}
+        intensity={1.1}
         color={"#00FFCC"}
         castShadow
         shadow-mapSize-width={1024}
@@ -39,28 +65,11 @@ export default function ApplicantsCityScene({ onApplicantClick, selectedIds = []
         shadow-camera-top={50}
         shadow-camera-bottom={-50}
       />
-      <pointLight position={[-20, 8, -20]} intensity={0.5} color="#FF007F" />
-      <pointLight position={[20, 8, 20]} intensity={0.5} color="#00FFCC" />
+      <pointLight position={[-20, 8, -20]} intensity={0.7} color="#FF007F" />
+      <pointLight position={[20, 8, 20]} intensity={0.7} color="#00FFCC" />
+      <ambientLight intensity={0.28} color={"#1a3a3a"} />
 
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
-        <planeGeometry args={[140, 140]} />
-        <meshStandardMaterial color={"#0A0A0A"} roughness={0.95} metalness={0.05} />
-      </mesh>
-
-      <Grid
-        position={[0, 0, 0]}
-        args={[140, 140]}
-        cellSize={2.4}
-        cellThickness={0.6}
-        cellColor={"#0a3f3a"}
-        sectionSize={24}
-        sectionThickness={1}
-        sectionColor={"#00FFCC"}
-        fadeDistance={120}
-        fadeStrength={1.4}
-        infiniteGrid={false}
-        followCamera={false}
-      />
+      <CityGround />
 
       <Suspense fallback={null}>
         {applicants && (

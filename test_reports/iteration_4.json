@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration-4 backend+frontend validation of the AI brief endpoint, external-apply flow, removal of the old match-score UI, and visual polish (Applicants City roads + brighter towers). 15/17 backend pytest pass. All iteration-4-specific tests pass EXCEPT the final 'applied-success' UX assertion, which is blocked by a SEED REGRESSION (the demo@jobcity.app user record exists but its linked applicants row is missing, so POST /api/applications returns 400 'No applicant profile').",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/applications", "issue": "Returns 400 'No applicant profile' for demo@jobcity.app. /api/admin/seed runs OK but does NOT recreate the demo applicants row when only the applicants doc is missing (user row already exists). Also /api/applications/mine returns 0 items for demo (expected >=5). Root cause: /app/backend/scripts/seed.py::_seed_admin_and_demo only creates the applicant inside the `if demo is None:` branch — so once the demo user exists but the applicant row is wiped (e.g., between iterations), reseeding never restores it. Fix: also upsert the applicants doc unconditionally for the demo user.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Mark as applied (confirm path)", "issue": "Clicking confirm-applied-btn fails (400 No applicant profile) so data-testid='applied-success' never renders. Caused by the seed regression above — NOT by iteration-4 code. Frontend correctly surfaces the failure (stays in non-applied state).", "affected_selectors": ["confirm-applied-btn", "applied-success"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iteration_4.xml"
+  ],
+  "action_items": [
+    "Fix /app/backend/scripts/seed.py::_seed_admin_and_demo: upsert the demo applicants row unconditionally (move the db.applicants.insert_one block outside the `if demo is None` guard and switch to replace_one(..., upsert=True)). This will restore demo's 5 seed applications and unblock POST /api/applications + the 'applied-success' UX path."
+  ],
+  "critical_code_review_comments": [
+    "routes/jobs.py GET /jobs/{job_id}/summary: clean implementation. 7-day cache via job_briefs collection works as designed (verified cached:true on second call within ~1s). No-auth public access verified.",
+    "JobDetail.jsx: old match-score testids ('match-score-btn','match-result','match-score-value') have been fully removed — confirmed not in DOM on /jobs/<id>. The AI brief card auto-fetches on mount, summary text appears, and required-skills chips render (7 chips on the test job, >=4 required).",
+    "external-apply-btn logged-out behavior is correct: redirects to /login. When logged in, for jobs with source_url it triggers window.open + an AlertDialog; for seeded jobs (no source_url) it opens the dialog directly (verified — 0 new tabs spawned, dialog visible).",
+    "AlertDialog data-testids (did-you-apply-dialog, did-not-apply-btn, confirm-applied-btn) are all wired correctly. did-not-apply closes the dialog and the page stays in the not-applied state (external-apply-btn still visible).",
+    "ApplicantsCityScene.jsx procedural road texture renders on the ground (green grid lines clearly visible behind buildings, no WebGL errors). Regular non-skyscraper towers are clearly visible in red/yellow/blue/green when no search filter is active — the 'brighter regular-tower visibility' goal is met.",
+    "/jobs-city regression: clicking a Las Vegas building opens data-testid='job-detail-sheet' with the Netflix company list (6 roles). Emissive-only material refactor did not break raycast.",
+    "Pre-existing 401 console errors on /api/auth/me when unauthenticated are expected and not regressions."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestJobBrief class with 3 cases: no-auth 200, cached on 2nd call, 404 for missing job)"
+  ],
+  "success_rate": {
+    "backend": "88% (15/17 pytest; the 2 failures are TestApplications::test_mine_has_seed_apps and TestApplications::test_create_and_duplicate — both blocked by the demo applicant seed regression, not by iteration-4 code)",
+    "frontend": "92% (12/13 iteration-4 flows verified — the only failed assertion is applied-success text, which is downstream of the same seed regression)"
+  },
+  "test_credentials": "demo@jobcity.app / Demo123! (primary). Note: demo user currently has NO linked applicants row — see action_items.",
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration-4 testids verified: ai-brief-card, ai-brief-summary, ai-brief-required-skills (chips count), ai-brief-nice-skills, external-apply-btn, mark-applied-btn, did-you-apply-dialog, did-not-apply-btn, confirm-applied-btn. The match-score-* testids are gone (good). Test job with source_url='greenhouse': job_7133f6204b7578 (OpenAI Embedded SWE). Test seeded job: job_a5099997e884f7. Brief cold-call latency was ~7-10s, cached ~0.3s. After main agent fixes the seed bug, just re-run pytest backend/tests/backend_test.py::TestApplications and re-test the confirm-applied-btn → applied-success flow in the UI.",
+  "rca_of_the_issue": "Seed regression RCA — /app/backend/scripts/seed.py::_seed_admin_and_demo wraps both the users insert AND the applicants insert inside `if demo is None:`. If at any point the applicants collection is wiped/restored without also wiping users, re-running seed leaves the demo user with no applicants row. The current production state of the preview env is in exactly that condition: GET /api/auth/me returns user with applicant:null, GET /api/applications/mine returns items:[], POST /api/applications returns 400 'No applicant profile'. Mitigation: move applicants upsert out of the `if demo is None` block and use replace_one(..., upsert=True) so it self-heals on every seed run. The same logic should be applied to the admin branch as well."
+}

@@ -55,10 +55,9 @@ export default function Skyscraper({
 
   const matProps = {
     color,
-    map: tex,
     emissive: color,
     emissiveMap: tex,
-    emissiveIntensity: 0.35,
+    emissiveIntensity: 0.65,
     roughness: 0.45,
     metalness: 0.25,
   };
@@ -87,8 +86,6 @@ export default function Skyscraper({
         <boxGeometry args={[w1, h1, w1]} />
         <meshStandardMaterial
           {...matProps}
-          map-repeat-x={Math.max(1, Math.round(w1))}
-          map-repeat-y={Math.max(2, Math.round(h1 / 1.5))}
           emissiveMap-repeat-x={Math.max(1, Math.round(w1))}
           emissiveMap-repeat-y={Math.max(2, Math.round(h1 / 1.5))}
         />
@@ -98,8 +95,6 @@ export default function Skyscraper({
         <boxGeometry args={[w2, h2, w2]} />
         <meshStandardMaterial
           {...matProps}
-          map-repeat-x={Math.max(1, Math.round(w2))}
-          map-repeat-y={Math.max(2, Math.round(h2 / 1.5))}
           emissiveMap-repeat-x={Math.max(1, Math.round(w2))}
           emissiveMap-repeat-y={Math.max(2, Math.round(h2 / 1.5))}
         />
@@ -109,8 +104,6 @@ export default function Skyscraper({
         <boxGeometry args={[w3, h3, w3]} />
         <meshStandardMaterial
           {...matProps}
-          map-repeat-x={Math.max(1, Math.round(w3))}
-          map-repeat-y={Math.max(2, Math.round(h3 / 1.5))}
           emissiveMap-repeat-x={Math.max(1, Math.round(w3))}
           emissiveMap-repeat-y={Math.max(2, Math.round(h3 / 1.5))}
         />

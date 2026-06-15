@@ -42,7 +42,12 @@ export function AuthProvider({ children }) {
   }, [refresh]);
 
   const logout = useCallback(async () => {
-    try { await api.post("/auth/logout"); } catch {}
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      // server-side logout is best-effort; local state still cleared below
+      console.warn("logout: server-side call failed", err?.message || err);
+    }
     localStorage.removeItem("jc_token");
     setUser(false);
     setApplicant(null);
