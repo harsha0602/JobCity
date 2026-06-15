@@ -9,8 +9,8 @@ import * as THREE from "three";
 export default function ApplicantRoads({
   cells = 24,
   spacing = 2.4,
-  roadWidth = 0.6,
-  roadColor = "#0d1218",
+  roadWidth = 0.7,
+  roadColor = "#2a2e38",
   stripeColor = "#00FFCC",
 }) {
   const { offsets, extent } = useMemo(() => {
@@ -56,7 +56,7 @@ export default function ApplicantRoads({
         <mesh
           key={`h-${idx}`}
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, 0.012, z]}
+          position={[0, 0.015, z]}
           geometry={roadHGeom}
           material={baseMat}
           receiveShadow
@@ -67,7 +67,7 @@ export default function ApplicantRoads({
         <mesh
           key={`v-${idx}`}
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[x, 0.012, 0]}
+          position={[x, 0.015, 0]}
           geometry={roadVGeom}
           material={baseMat}
           receiveShadow
@@ -78,7 +78,7 @@ export default function ApplicantRoads({
         <mesh
           key={`hs-${idx}`}
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, 0.02, z]}
+          position={[0, 0.03, z]}
           geometry={stripeHGeom}
           material={stripeMat}
         />
@@ -87,7 +87,7 @@ export default function ApplicantRoads({
         <mesh
           key={`vs-${idx}`}
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[x, 0.02, 0]}
+          position={[x, 0.03, 0]}
           geometry={stripeVGeom}
           material={stripeMat}
         />

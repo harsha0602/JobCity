@@ -12,7 +12,7 @@ export default function LoginPage() {
   const location = useLocation();
   const returnTo = location.state?.returnTo || "/jobs-city";
 
-  const [email, setEmail] = useState("demo@jobcity.app");
+  const [email, setEmail] = useState("demo@jobcity.test");
   const [password, setPassword] = useState("Demo123!");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -109,7 +109,7 @@ export default function LoginPage() {
           </Link>
         </div>
         <div className="mt-2 text-xs text-white/40 font-mono">
-          Demo · demo@jobcity.app · Demo123!
+          Demo · demo@jobcity.test · Demo123!
         </div>
       </form>
     </div>
