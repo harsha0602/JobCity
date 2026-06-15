@@ -39,14 +39,16 @@ export function attachAuthHeader(config) {
 
 /**
  * Response-error interceptor: on 401, drop the stale token so it stops being
- * resent, and bounce to /login (unless we're already there). Always re-rejects
- * so callers still see the error.
+ * resent. Only bounce to /login if we actually had a token (i.e. the user's
+ * session expired); anonymous guests probing /auth/me must NOT be redirected.
+ * Always re-rejects so callers still see the error.
  */
 export function handleResponseError(error) {
   const status = error?.response?.status;
   if (status === 401) {
+    const hadToken = !!getToken();
     clearToken();
-    if (typeof window !== "undefined") {
+    if (hadToken && typeof window !== "undefined") {
       const path = window.location?.pathname || "";
       if (!path.startsWith("/login")) {
         window.location.assign("/login?expired=1");

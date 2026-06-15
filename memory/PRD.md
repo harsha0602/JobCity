@@ -79,7 +79,12 @@
 - ✅ **Profile card redesign** (gitcity-inspired) — radial avatar, @handle, title, level letter (S/A/B) with linear gradient progress bar, role + GitHub tags, 3×2 stat grid (APPS · COMMITS/30D · SKILLS · LEVEL · STATUS · HIRABLE), skills chips, VIEW RESUME (gold), + COMPARE, GITHUB ↗ buttons.
 - ✅ **Search → fly-to-applicant** — pressing Enter in the search box matches the first applicant by name/title/level/github; on match: success toast + camera fly + focus panel; on no match: error toast "No applicant found matching X.".
 
-## Test credentials
+## Iteration 7 — Jun 15, 2026 (guest-friendly entry)
+- ✅ **Removed forced-login redirect for guests** — `lib/authToken.js` 401 interceptor now only bounces to `/login?expired=1` when a token actually existed (session expiry). Anonymous probes from `AuthProvider`'s `/auth/me` on first load no longer kick guests off `/`, `/register`, `/jobs-city`, etc.
+- ✅ **Login page** — added a top-right `X` close button (`login-guest-close-btn`) and a `Skip — continue as guest →` link (`login-continue-as-guest-btn`) below the form. Both navigate to `/`.
+- ✅ **Register page** — same X close (`register-guest-close-btn`) and `Skip — continue as guest →` link (`register-continue-as-guest-btn`).
+
+
 - `demo@jobcity.app` / `Demo123!` (applicant, 5 applications)
 - `admin@jobcity.app` / `Admin123!` (admin)
 - Stored in `/app/memory/test_credentials.md`

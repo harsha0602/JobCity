@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { formatApiErrorDetail } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -41,9 +42,19 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4 pt-20 pb-12">
       <form
         onSubmit={onSubmit}
-        className="glass rounded-3xl p-8 w-full max-w-md"
+        className="glass rounded-3xl p-8 w-full max-w-md relative"
         data-testid="login-form"
       >
+        <button
+          type="button"
+          data-testid="login-guest-close-btn"
+          onClick={() => nav("/")}
+          aria-label="Continue as guest"
+          title="Continue as guest"
+          className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition"
+        >
+          <X size={18} />
+        </button>
         <div className="label-mono">SIGN IN</div>
         <h1 className="text-3xl font-black mt-1">Welcome back to JobCity</h1>
 
@@ -108,6 +119,14 @@ export default function LoginPage() {
             Create an account
           </Link>
         </div>
+        <button
+          type="button"
+          data-testid="login-continue-as-guest-btn"
+          onClick={() => nav("/")}
+          className="mt-4 w-full text-center text-sm text-white/55 hover:text-white underline decoration-white/20 underline-offset-4 transition"
+        >
+          Skip — continue as guest →
+        </button>
         <div className="mt-2 text-xs text-white/40 font-mono">
           Demo · demo@jobcity.test · Demo123!
         </div>
