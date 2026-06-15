@@ -91,8 +91,6 @@ export default function Skyscraper({
         <boxGeometry args={[w1, h1, w1]} />
         <meshStandardMaterial
           {...matProps}
-          emissiveMap-repeat-x={Math.max(1, Math.round(w1))}
-          emissiveMap-repeat-y={Math.max(2, Math.round(h1 / 1.5))}
         />
       </mesh>
       {/* Mid */}
@@ -100,8 +98,6 @@ export default function Skyscraper({
         <boxGeometry args={[w2, h2, w2]} />
         <meshStandardMaterial
           {...matProps}
-          emissiveMap-repeat-x={Math.max(1, Math.round(w2))}
-          emissiveMap-repeat-y={Math.max(2, Math.round(h2 / 1.5))}
         />
       </mesh>
       {/* Top */}
@@ -109,8 +105,6 @@ export default function Skyscraper({
         <boxGeometry args={[w3, h3, w3]} />
         <meshStandardMaterial
           {...matProps}
-          emissiveMap-repeat-x={Math.max(1, Math.round(w3))}
-          emissiveMap-repeat-y={Math.max(2, Math.round(h3 / 1.5))}
         />
       </mesh>
       {/* Glow light when selected/hovered */}

@@ -77,10 +77,6 @@ export default function ApplicantBuildings({
           metalness={0.15}
           transparent={soloMode}
           opacity={soloMode ? 0.55 : 1.0}
-          map-repeat-x={2}
-          map-repeat-y={3}
-          emissiveMap-repeat-x={2}
-          emissiveMap-repeat-y={3}
         />
         {regular.map((a) => (
           <ApplicantInstance

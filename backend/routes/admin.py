@@ -1,11 +1,17 @@
-"""Admin / seed / ingestion routes."""
-from fastapi import APIRouter, HTTPException
+"""Admin / seed / ingestion routes.
 
+Every route is gated by ``require_admin`` — either an admin-role JWT or a
+valid ``X-Admin-Key`` header. Before this gate existed, anyone could wipe the
+database via ``POST /api/admin/seed?reset=true``.
+"""
+from fastapi import APIRouter, Depends, HTTPException
+
+from auth_utils import require_admin
 from db import get_db
 from scripts.seed import run_seed
 from services.ingestion import ingest_remoteok, ingest_greenhouse
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
 @router.post("/seed")

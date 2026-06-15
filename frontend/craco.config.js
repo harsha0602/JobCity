@@ -9,6 +9,7 @@ const isDevServer = process.env.NODE_ENV !== "production";
 // Environment variable overrides
 const config = {
   enableHealthCheck: process.env.ENABLE_HEALTH_CHECK === "true",
+  enableVisualEdits: process.env.ENABLE_VISUAL_EDITS === "true",
 };
 
 // Conditionally load health check modules only if enabled
@@ -30,6 +31,20 @@ let webpackConfig = {
         "react-hooks/rules-of-hooks": "error",
         "react-hooks/exhaustive-deps": "warn",
       },
+    },
+  },
+  // Map the "@/" alias for Jest as well, so tests can import source modules
+  // the same way the app does (craco only wires the webpack alias by default).
+  jest: {
+    configure: {
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/src/$1',
+      },
+      // axios v1 ships ESM; let babel-jest transpile it (CRA ignores node_modules by default).
+      transformIgnorePatterns: [
+        '[/\\\\]node_modules[/\\\\](?!axios)(.+)\\.(js|jsx|mjs|cjs|ts|tsx)$',
+        '^.+\\.module\\.(css|sass|scss)$',
+      ],
     },
   },
   webpack: {
@@ -81,8 +96,9 @@ webpackConfig.devServer = (devServerConfig) => {
   return devServerConfig;
 };
 
-// Wrap with visual edits (automatically adds babel plugin, dev server, and overlay in dev mode)
-if (isDevServer) {
+// Visual edits inject DOM-only x-* metadata into JSX. Keep the integration
+// opt-in because those props are invalid on React Three Fiber objects.
+if (isDevServer && config.enableVisualEdits) {
   try {
     const { withVisualEdits } = require("@emergentbase/visual-edits/craco");
     webpackConfig = withVisualEdits(webpackConfig);

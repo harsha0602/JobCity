@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
 from db import get_db
+from routes._search import literal_regex
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
 
@@ -12,7 +13,7 @@ async def list_companies(q: Optional[str] = None, limit: int = Query(100, le=200
     db = get_db()
     match: dict = {}
     if q:
-        match["name"] = {"$regex": q, "$options": "i"}
+        match["name"] = {"$regex": literal_regex(q), "$options": "i"}
     pipeline = [
         {"$match": match} if match else {"$match": {}},
         {"$sort": {"name": 1}},

@@ -7,16 +7,38 @@ export default function ComparePage() {
   const [params] = useSearchParams();
   const ids = (params.get("ids") || "").split(",").filter(Boolean);
   const [items, setItems] = useState(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!ids.length) {
       setItems([]);
       return;
     }
-    api.post("/applicants/compare", { ids }).then((r) => setItems(r.data.items));
+    let ignore = false;
+    setError(false);
+    api
+      .post("/applicants/compare", { ids })
+      .then((r) => {
+        if (!ignore) setItems(r.data?.items || []);
+      })
+      .catch(() => {
+        if (!ignore) {
+          setItems([]);
+          setError(true);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.get("ids")]);
 
+  if (error)
+    return (
+      <div className="pt-32 text-center text-white/60 label-mono">
+        Couldn&apos;t load the comparison. Please try again.
+      </div>
+    );
   if (items === null) return <div className="pt-32 text-center text-white/60 label-mono">LOADING…</div>;
 
   const maxApps = Math.max(1, ...items.map((it) => it.stats.applications_count || 0));

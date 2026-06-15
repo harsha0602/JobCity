@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -136,3 +137,27 @@ async def get_optional_user(request: Request) -> Optional[dict]:
         return await get_current_user(request)
     except HTTPException:
         return None
+
+
+async def require_admin(request: Request) -> dict:
+    """Authorize admin-only routes.
+
+    Grants access to either:
+      1. A logged-in user whose ``role == "admin"``, or
+      2. A request carrying ``X-Admin-Key`` matching the ``ADMIN_API_KEY`` env
+         var (for deploy/seed scripts that have no interactive session).
+
+    Fails closed: if no admin user exists and no key is configured/matched,
+    every admin route is rejected.
+    """
+    admin_key = os.environ.get("ADMIN_API_KEY")
+    provided_key = request.headers.get("X-Admin-Key")
+    if admin_key and provided_key and secrets.compare_digest(provided_key, admin_key):
+        return {"user_id": "__api_key__", "role": "admin", "via": "api_key"}
+
+    user = await get_optional_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user

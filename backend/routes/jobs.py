@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from auth_utils import get_current_user
 from data.us_cities import lookup as city_lookup
 from db import get_db
+from routes._search import literal_regex
 
 router = APIRouter(prefix="/api", tags=["jobs"])
 
@@ -31,10 +32,11 @@ async def list_jobs(
     if remote is not None:
         query["remote"] = remote
     if q:
+        rx = literal_regex(q)
         query["$or"] = [
-            {"title": {"$regex": q, "$options": "i"}},
-            {"company_name": {"$regex": q, "$options": "i"}},
-            {"description": {"$regex": q, "$options": "i"}},
+            {"title": {"$regex": rx, "$options": "i"}},
+            {"company_name": {"$regex": rx, "$options": "i"}},
+            {"description": {"$regex": rx, "$options": "i"}},
         ]
     cursor = db.jobs.find(query, {"_id": 0}).sort("posted_at", -1).skip(offset).limit(limit)
     items = await cursor.to_list(length=limit)

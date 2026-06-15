@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 /**
  * Handles the Emergent Google Auth callback (`#session_id=...`).
@@ -8,6 +9,7 @@ import { api } from "@/lib/api";
  */
 export default function AuthCallback() {
   const nav = useNavigate();
+  const { refresh } = useAuth();
   const ran = useRef(false);
 
   useEffect(() => {
@@ -25,12 +27,15 @@ export default function AuthCallback() {
         const { data } = await api.post("/auth/google/session", { session_id });
         if (data?.token) localStorage.setItem("jc_token", data.token);
         window.history.replaceState(null, "", window.location.pathname);
+        // AuthProvider skipped its initial refresh() because the hash carried
+        // session_id; hydrate the user now so /profile isn't stuck on "AUTHORIZING…".
+        await refresh();
         nav("/profile", { replace: true });
       } catch (e) {
         nav("/login?error=google", { replace: true });
       }
     })();
-  }, [nav]);
+  }, [nav, refresh]);
 
   return (
     <div className="flex items-center justify-center min-h-screen text-white/60 label-mono">

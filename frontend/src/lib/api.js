@@ -1,22 +1,23 @@
 import axios from "axios";
+import {
+  resolveBaseURL,
+  attachAuthHeader,
+  handleResponseError,
+} from "@/lib/authToken";
 
 const BASE = process.env.REACT_APP_BACKEND_URL;
 
 export const api = axios.create({
-  baseURL: `${BASE}/api`,
+  baseURL: resolveBaseURL(BASE),
   withCredentials: false,
   timeout: 30000,
 });
 
-// Attach Bearer token from localStorage too (belt + suspenders)
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("jc_token");
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Attach Bearer token from localStorage (belt + suspenders).
+api.interceptors.request.use(attachAuthHeader);
+
+// On 401, clear the stale token and redirect to /login instead of resending it.
+api.interceptors.response.use((r) => r, handleResponseError);
 
 export function formatApiErrorDetail(detail) {
   if (detail == null) return "Something went wrong. Please try again.";

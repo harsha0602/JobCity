@@ -60,8 +60,6 @@ export default function CompanyBuildings({ cities, onCompanyClick, selected, que
           emissiveIntensity={0.65}
           roughness={0.55}
           metalness={0.1}
-          emissiveMap-repeat-x={2}
-          emissiveMap-repeat-y={3}
         />
         {regular.map((b) => (
           <BuildingInstance

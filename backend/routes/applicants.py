@@ -5,8 +5,9 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from auth_utils import get_current_user
+from auth_utils import get_current_user, get_optional_user
 from db import get_db
+from routes._search import literal_regex
 
 router = APIRouter(prefix="/api", tags=["applicants"])
 
@@ -32,10 +33,11 @@ async def list_applicants(
     if experience_level:
         query["experience_level"] = experience_level
     if q:
+        rx = literal_regex(q)
         query["$or"] = [
-            {"display_name": {"$regex": q, "$options": "i"}},
-            {"headline": {"$regex": q, "$options": "i"}},
-            {"skills": {"$regex": q, "$options": "i"}},
+            {"display_name": {"$regex": rx, "$options": "i"}},
+            {"headline": {"$regex": rx, "$options": "i"}},
+            {"skills": {"$regex": rx, "$options": "i"}},
         ]
     cursor = db.applicants.find(query, {"_id": 0}).sort("applications_count", -1).skip(offset).limit(limit)
     items = await cursor.to_list(length=limit)
@@ -44,17 +46,22 @@ async def list_applicants(
 
 
 @router.get("/applicants/{applicant_id}")
-async def get_applicant(applicant_id: str):
+async def get_applicant(applicant_id: str, request: Request):
     db = get_db()
     applicant = await db.applicants.find_one({"applicant_id": applicant_id}, {"_id": 0})
     if not applicant:
         raise HTTPException(status_code=404, detail="Applicant not found")
-    apps = (
-        await db.applications.find({"applicant_id": applicant_id}, {"_id": 0})
-        .sort("applied_at", -1)
-        .limit(50)
-        .to_list(length=50)
-    )
+    # Profile is public (the browsable city), but application history (which
+    # companies, when) is PII — only expose it to authenticated viewers.
+    viewer = await get_optional_user(request)
+    apps: list = []
+    if viewer is not None:
+        apps = (
+            await db.applications.find({"applicant_id": applicant_id}, {"_id": 0})
+            .sort("applied_at", -1)
+            .limit(50)
+            .to_list(length=50)
+        )
     return {"applicant": applicant, "applications": apps}
 
 
@@ -215,24 +222,29 @@ async def sync_github(request: Request):
 
 
 @router.post("/applicants/compare")
-async def compare_applicants(body: CompareIn):
+async def compare_applicants(body: CompareIn, request: Request):
     if not body.ids or len(body.ids) > 4:
         raise HTTPException(status_code=400, detail="Compare 1–4 applicants")
     db = get_db()
+    # top_companies reveals where an applicant applied — PII. Only authenticated
+    # viewers get it; anonymous callers get the public stats with it empty.
+    viewer = await get_optional_user(request)
     items = []
     for aid in body.ids:
         a = await db.applicants.find_one({"applicant_id": aid}, {"_id": 0})
         if not a:
             continue
         apps_total = a.get("applications_count", 0)
-        by_company = await db.applications.aggregate(
-            [
-                {"$match": {"applicant_id": aid}},
-                {"$group": {"_id": "$company_name", "n": {"$sum": 1}}},
-                {"$sort": {"n": -1}},
-                {"$limit": 5},
-            ]
-        ).to_list(length=5)
+        by_company = []
+        if viewer is not None:
+            by_company = await db.applications.aggregate(
+                [
+                    {"$match": {"applicant_id": aid}},
+                    {"$group": {"_id": "$company_name", "n": {"$sum": 1}}},
+                    {"$sort": {"n": -1}},
+                    {"$limit": 5},
+                ]
+            ).to_list(length=5)
         items.append(
             {
                 "applicant": a,
