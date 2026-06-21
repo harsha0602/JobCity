@@ -3,6 +3,13 @@
 We want a small, deterministic, explainable bucket so the 3D city shows
 **only the roles the user actually cares about** (software + robotics).
 
+⚠️  PATTERN ORDER IS LOAD-BEARING. ``management`` and ``business`` MUST be
+checked before ``software``/``product``/``design`` so that titles like
+"Engineering Manager" or "Talent Operations - Program Manager" don't get
+mis-classified as IC roles. The final ``business`` catch-all (after the
+technical buckets) traps loose "Lead/Manager/Director" titles — if you
+move the ``software`` bucket above it, manager/lead leaks WILL return.
+
 Categories
 ==========
 - ``software``   — generic SWE / backend / frontend / full-stack / mobile / web / embedded
@@ -246,7 +253,7 @@ _PATTERNS: list[tuple[str, re.Pattern]] = [
 ]
 
 #: Categories shown in the 3D city + default `/api/jobs` listing.
-TECHNICAL_IC = {
+TECHNICAL_IC: frozenset[str] = frozenset({
     "software",
     "robotics",
     "ml",
@@ -254,9 +261,11 @@ TECHNICAL_IC = {
     "security",
     "infra",
     "hardware",
-}
+})
 
-ALL_CATEGORIES = TECHNICAL_IC | {"design", "product", "management", "business", "other"}
+ALL_CATEGORIES: frozenset[str] = TECHNICAL_IC | frozenset(
+    {"design", "product", "management", "business", "other"}
+)
 
 
 def classify(title: str) -> str:

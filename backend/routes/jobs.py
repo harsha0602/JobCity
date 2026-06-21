@@ -6,9 +6,35 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from auth_utils import get_current_user
 from data.us_cities import lookup as city_lookup
 from db import get_db
+from ingest.classify import ALL_CATEGORIES, TECHNICAL_IC
 from routes._search import literal_regex
 
 router = APIRouter(prefix="/api", tags=["jobs"])
+
+
+def _build_category_filter(category: Optional[str]) -> Optional[dict]:
+    """Translate a `?category=` query into a Mongo `{$in: [...]}` clause.
+
+    Single source of truth for the category gate so /jobs and
+    /jobs-city/buildings can't drift apart.
+
+      - Omitted / blank   → default to TECHNICAL_IC (software + robotics + ml + data + security + infra + hardware)
+      - "all"             → ``None`` (caller skips the filter)
+      - CSV list          → only the values that pass validation; if none survive,
+                            we still default to TECHNICAL_IC so callers can't
+                            silently bypass the gate with garbage input.
+    """
+    if not category:
+        return {"$in": sorted(TECHNICAL_IC)}
+    if category.strip().lower() == "all":
+        return None
+    cats = [c.strip().lower() for c in category.split(",") if c.strip()]
+    cats = [c for c in cats if c in ALL_CATEGORIES]
+    if not cats:
+        # Every supplied value was invalid → don't open the gate. Re-apply
+        # the technical-IC default so manager/sales/PM roles can't leak in.
+        return {"$in": sorted(TECHNICAL_IC)}
+    return {"$in": cats}
 
 
 @router.get("/jobs")
@@ -70,15 +96,10 @@ async def list_jobs(
         lv = level.lower().strip()
         if lv in ("entry", "mid", "senior"):
             query["level"] = lv
-    # Category gating
-    from ingest.classify import TECHNICAL_IC, ALL_CATEGORIES
-    if not category:
-        query["category"] = {"$in": sorted(TECHNICAL_IC)}
-    elif category.strip().lower() != "all":
-        cats = [c.strip().lower() for c in category.split(",") if c.strip()]
-        cats = [c for c in cats if c in ALL_CATEGORIES]
-        if cats:
-            query["category"] = {"$in": cats}
+    # Category gating — see _build_category_filter for the contract.
+    cat_clause = _build_category_filter(category)
+    if cat_clause is not None:
+        query["category"] = cat_clause
     if role:
         rx = literal_regex(role)
         query["title"] = {"$regex": rx, "$options": "i"}
@@ -181,15 +202,10 @@ async def jobs_city_buildings(category: Optional[str] = None):
     sales / talent roles. Pass ``?category=all`` to disable.
     """
     db = get_db()
-    from ingest.classify import TECHNICAL_IC, ALL_CATEGORIES
     match: dict = {"is_active": True}
-    if not category:
-        match["category"] = {"$in": sorted(TECHNICAL_IC)}
-    elif category.strip().lower() != "all":
-        cats = [c.strip().lower() for c in category.split(",") if c.strip()]
-        cats = [c for c in cats if c in ALL_CATEGORIES]
-        if cats:
-            match["category"] = {"$in": cats}
+    cat_clause = _build_category_filter(category)
+    if cat_clause is not None:
+        match["category"] = cat_clause
     pipeline = [
         {"$match": match},
         {

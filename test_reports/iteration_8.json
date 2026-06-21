@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration-8 backend-only re-test of the category-filter RCA fix in routes/jobs.py `_build_category_filter()`. All 11 targeted regression cases PASS against the live preview backend. Invalid `?category=` values no longer leak manager/sales/PM rows — they fall back to the TECHNICAL_IC default (1336 jobs, 12 cities). `category=all` still bypasses (3971 jobs, 28 cities); no param still defaults to IC; partial-valid CSV (`software,garbage`) correctly returns only `software`. `/api/jobs/filters` and demo login still healthy.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration8.py",
+    "/app/test_reports/pytest/iteration8_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/jobs.py: `_build_category_filter()` is clean — single source of truth, well-documented contract, handles None/blank/'all'/CSV/partial/all-invalid correctly. No further changes needed.",
+    "Helper is called by both /api/jobs and /api/jobs-city/buildings; drift risk is now eliminated.",
+    "Consider adding the same defense-in-depth helper-call pattern to any future endpoint that exposes a category gate."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration8.py (new — 11 regression tests)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "demo@jobcity.test / Demo123! (login verified 200 with token)",
+  "seed_data_creation": "None — read-only assertions against existing seeded jobs (3971 total, 1336 TECHNICAL_IC, 22 robotics, 28 cities).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_iteration8.py is parameterised on REACT_APP_BACKEND_URL with a /app/frontend/.env fallback, so it can run from either the conftest harness or standalone. Note the API enforces `limit<=200` (422 otherwise); count assertions use the response `total` field, not page size. Buildings endpoint shape is {cities:[{total_jobs, companies:[...]}]} — sum `total_jobs` across cities to get floor count.",
+  "rca of the issue": "Iteration-7 bug: an invalid `?category=garbage` produced an empty `{$in: []}` Mongo clause that matched nothing, which earlier code 'rescued' by dropping the filter entirely → all 3971 rows (incl. manager/sales/PM) leaked. Fix in routes/jobs.py extracts a shared `_build_category_filter()` that, when CSV parsing yields zero valid categories, re-applies the TECHNICAL_IC default instead of returning None. Verified: invalid → 1336, all → 3971, partial-valid → only valid subset, no-param → 1336, robotics → 22. Same matrix verified on /api/jobs-city/buildings."
+}
