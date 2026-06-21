@@ -1,0 +1,12 @@
+# JobCity backend — DEV-only dependencies (lint / format / type-check, plus the
+# `requests`-based legacy live-server integration tests).
+#
+# The test runner (pytest etc.) lives in requirements.txt so the Docker image
+# and CI both get it from a single install. Install these on top for local dev:
+#     pip install -r requirements.txt -r requirements-dev.txt
+
+requests==2.34.2          # used by the legacy *_test.py live-server integration tests
+black==26.5.1
+flake8==7.3.0
+isort==8.0.1
+mypy==2.1.0
