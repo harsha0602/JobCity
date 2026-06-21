@@ -21,9 +21,8 @@ from tests.conftest import auth_header
 # ----------------------------------------------------------------------------
 
 @pytest.mark.parametrize("method,path", [
-    ("post", "/api/admin/seed"),
-    ("post", "/api/admin/ingest/remoteok"),
-    ("post", "/api/admin/cleanup-categories"),
+    ("post", "/api/admin/ingest"),
+    ("get", "/api/admin/scheduler/status"),
     ("get", "/api/admin/stats"),
 ])
 async def test_admin_requires_auth_anonymous(client, method, path):

@@ -1,4 +1,5 @@
 """Job-related routes including the 3D buildings aggregation."""
+import os
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -10,6 +11,12 @@ from ingest.classify import ALL_CATEGORIES, TECHNICAL_IC
 from routes._search import literal_regex
 
 router = APIRouter(prefix="/api", tags=["jobs"])
+
+
+def _ai_enabled() -> bool:
+    """AI summary/match-score are opt-in. Off by default so deploys don't depend
+    on the Emergent LLM stack (see requirements-ai.txt)."""
+    return os.environ.get("AI_FEATURES_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
 
 def _build_category_filter(category: Optional[str]) -> Optional[dict]:
@@ -265,6 +272,8 @@ async def job_brief(job_id: str, request: Request):
     """LLM-generated role summary + required/nice-to-have skills. No auth required.
     Cached for 7 days in `job_briefs` collection so we don't re-spend on Claude.
     Rate-limited to 20 calls / 60s per caller (IP, or user_id if signed in)."""
+    if not _ai_enabled():
+        raise HTTPException(status_code=503, detail="AI features are disabled in this deployment.")
     db = get_db()
     job = await db.jobs.find_one({"job_id": job_id}, {"_id": 0})
     if not job:
@@ -306,6 +315,8 @@ async def job_brief(job_id: str, request: Request):
 @router.post("/jobs/{job_id}/match-score")
 async def match_score(job_id: str, request: Request):
     """LLM-powered match score (Claude Sonnet 4.5 via Emergent LLM key)."""
+    if not _ai_enabled():
+        raise HTTPException(status_code=503, detail="AI features are disabled in this deployment.")
     user = await get_current_user(request)
     db = get_db()
     job = await db.jobs.find_one({"job_id": job_id}, {"_id": 0})

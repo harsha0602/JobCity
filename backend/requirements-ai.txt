@@ -1,0 +1,12 @@
+# Optional AI dependencies for the job summary + match-score features.
+# NOT installed in the default/base build (see requirements.txt note).
+#
+# To enable AI features in a deployment:
+#   1. pip install -r requirements-ai.txt
+#   2. set AI_FEATURES_ENABLED=1 and EMERGENT_LLM_KEY=<key>
+#
+# WARNING: the litellm wheel below is pinned to a vendor-hosted URL with no SLA.
+# Prefer vendoring the wheel into the repo or pinning a public PyPI litellm
+# release before relying on this in production CI.
+emergentintegrations==0.2.0
+litellm @ https://customer-assets.emergentagent.com/internal-asset/library/litellm-1.80.0-py3-none-any.whl#sha256=adf398c513273de9341f61822296c6b2145f7f2dc4a69daf3ac04829f5bde3f8

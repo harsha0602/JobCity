@@ -96,6 +96,12 @@ export default function JobsCityPage() {
     setQuery("");
   };
 
+  // Cold-start / empty-data guard: `cities` is null while loading, then an
+  // array (possibly company-less) once loaded. Show a friendly overlay instead
+  // of a blank 3D map so a fresh deploy never reads as broken.
+  const buildingCount =
+    cities == null ? null : cities.reduce((n, c) => n + (c.companies?.length || 0), 0);
+
   return (
     <div className="fixed inset-0">
       <Suspense fallback={null}>
@@ -107,6 +113,24 @@ export default function JobsCityPage() {
           onCitiesLoaded={handleCitiesLoaded}
         />
       </Suspense>
+
+      {(buildingCount === null || buildingCount === 0) && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <div className="glass rounded-2xl px-6 py-5 text-center max-w-sm pointer-events-auto">
+            <div className="label-mono text-white/60">JOBS CITY</div>
+            {buildingCount === null ? (
+              <div className="text-white font-semibold mt-1">Loading the city…</div>
+            ) : (
+              <>
+                <div className="text-white font-semibold mt-1">No open roles loaded yet</div>
+                <div className="text-white/50 text-sm mt-1">
+                  Live jobs refresh every 6 hours. Check back shortly.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Floating search */}
       <div className="absolute top-20 left-4 z-20 pointer-events-auto">
