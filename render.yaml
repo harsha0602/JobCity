@@ -1,0 +1,42 @@
+# Render Blueprint — full-stack JobCity (MongoDB on Atlas, not Render).
+# Import via Render → New → Blueprint. Set the `sync: false` secrets in the
+# dashboard after first apply.
+services:
+  - type: web
+    name: jobcity-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/
+    autoDeploy: false  # deploys are triggered by the Deploy workflow (post-CI)
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DB_NAME
+        value: jobcity
+      - key: INGEST_SCHEDULER_DISABLED
+        value: "1"   # ingest runs as a scheduled GitHub Action
+      - key: AI_FEATURES_ENABLED
+        value: "0"
+      - key: JWT_SECRET
+        generateValue: true   # Render generates a strong value (passes the >=32 check)
+      - key: MONGO_URL
+        sync: false   # Atlas connection string (secret)
+      - key: CORS_ORIGINS
+        sync: false   # set to the frontend public URL, e.g. https://jobcity-frontend.onrender.com
+      - key: ADMIN_EMAIL
+        sync: false   # optional admin bootstrap (run: python -m scripts.seed)
+      - key: ADMIN_PASSWORD
+        sync: false
+
+  - type: web
+    name: jobcity-frontend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    autoDeploy: false
+    envVars:
+      - key: BACKEND_URL
+        sync: false   # the backend service URL, e.g. https://jobcity-backend.onrender.com

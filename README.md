@@ -24,19 +24,46 @@ cp backend/.env.example backend/.env   # or hand-edit MONGO_URL / JWT_SECRET / C
 cd backend && pip install -r requirements.txt
 cd ../frontend && yarn install --ignore-engines
 
-# 3. Seed admin/demo users + run first real ingest
+# 3. Pull real jobs (no fabricated/seed data is created anymore)
 cd ../backend
-python -m scripts.seed              # creates demo + admin users, demo applicants
 python -m ingest.cli run            # fetches ~3-4k real jobs from public ATSes
+python -m scripts.seed              # OPTIONAL: env-gated admin bootstrap (needs ADMIN_EMAIL/ADMIN_PASSWORD)
 
 # 4. Run
-sudo supervisorctl start backend frontend
-# or, locally: uvicorn server:app --reload (port 8001) + cd frontend && yarn start
+uvicorn server:app --reload --port 8001    # backend
+cd ../frontend && yarn start               # frontend (http://localhost:3000)
 ```
 
-Default test credentials are seeded by step 3:
-- **applicant:** `demo@jobcity.test` / `Demo123!`
-- **admin:** `admin@jobcity.test` / `Admin123!`
+There are no built-in demo/admin accounts — register a user in the app, or set
+strong `ADMIN_EMAIL`/`ADMIN_PASSWORD` and run `python -m scripts.seed` to create one admin.
+
+### Run the full stack with Docker
+
+```bash
+docker compose up --build              # frontend :8080 → backend :8001 → mongo
+docker compose exec backend python -m ingest.cli run   # populate real jobs
+open http://localhost:8080
+```
+
+## Deployment
+
+Deploys as a full-stack app (GitHub Pages can't host the FastAPI backend or
+MongoDB). The repo ships:
+
+- **`backend/Dockerfile`**, **`frontend/Dockerfile`** (nginx serves the build and
+  reverse-proxies `/api` → backend, so there's one origin and no CORS), and a root
+  **`docker-compose.yml`** for local parity.
+- **`render.yaml`** — a Render Blueprint: two Docker web services, with **MongoDB
+  on Atlas** (set `MONGO_URL`). `JWT_SECRET` is generated; set `CORS_ORIGINS` to the
+  frontend URL and `BACKEND_URL` (frontend) to the backend URL.
+- **GitHub Actions**: `ci.yml` (clean dependency install + backend/frontend tests +
+  image builds, gates `main`), `deploy.yml` (triggers Render deploy hooks only after
+  CI passes), `ingest.yml` (re-runs the ingest every 6h against Atlas).
+
+Required production env: `MONGO_URL`, `DB_NAME`, `JWT_SECRET` (≥32 chars), `APP_ENV=production`,
+`CORS_ORIGINS` (explicit, not `*`). The app **fails closed** at startup if these are missing/weak.
+AI summary/match are **off by default** (`AI_FEATURES_ENABLED=0`); to enable, install
+`requirements-ai.txt` and set the flag + `EMERGENT_LLM_KEY`. See `backend/.env.example`.
 
 ## How the job ingest works
 

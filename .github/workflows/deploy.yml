@@ -1,0 +1,20 @@
+name: Deploy
+
+# Deploys only after CI succeeds on main. Render builds the Docker images from
+# the repo (see render.yaml); these hooks just trigger a deploy. Set the two
+# RENDER_DEPLOY_HOOK_* repo secrets from each Render service's "Deploy Hook".
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy — backend
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
+      - name: Trigger Render deploy — frontend
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
