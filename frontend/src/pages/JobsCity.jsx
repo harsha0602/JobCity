@@ -2,7 +2,6 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import JobsCityScene from "@/components/three/JobsCityScene";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { project } from "@/lib/projection";
 import { floorsToHeight } from "@/lib/buildingTex";

@@ -38,6 +38,10 @@ let webpackConfig = {
   jest: {
     configure: {
       moduleNameMapper: {
+        // react-router-dom v7 is ESM-only; Jest 27's resolver can't read its
+        // `exports` map. Stub it so component tests can render router-aware
+        // components (Link, etc.) without pulling in the real ESM build.
+        '^react-router-dom$': '<rootDir>/src/test/stubs/reactRouterDom.js',
         '^@/(.*)$': '<rootDir>/src/$1',
       },
       // axios v1 ships ESM; let babel-jest transpile it (CRA ignores node_modules by default).
