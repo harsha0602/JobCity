@@ -1,6 +1,6 @@
 # Migration PR Checklist
 
-Use this checklist for every Codex migration PR.
+Use this checklist for every migration PR.
 
 ## Scope
 
@@ -22,7 +22,7 @@ Use this checklist for every Codex migration PR.
 
 - [ ] Current branch and worktree status were inspected before edits.
 - [ ] Recent commits or active PRs were considered where available.
-- [ ] Did this PR touch files likely affected by Claude's feature work?
+- [ ] Did this PR touch shared files, migration-owned files, or files likely affected by parallel feature work?
 - [ ] If yes, the PR explains why the migration had to touch those files.
 - [ ] The PR names the behavior that must be preserved.
 - [ ] The PR names the tests or checks proving that behavior was preserved.
@@ -43,6 +43,7 @@ Use this checklist for every Codex migration PR.
 
 Every migration PR must answer:
 
+- Task category:
 - Branch name:
 - Files changed:
 - Commands run:
@@ -54,5 +55,6 @@ Every migration PR must answer:
 - Did this task require superpowers?
 - Which commands/checks were run through gstack?
 - What architectural/risk decisions were made using superpowers?
-- Did this PR touch files likely affected by Claude's feature work?
+- Did this PR touch shared files, migration-owned files, or files likely affected by parallel feature work?
 - What compatibility guarantee protects the current app?
+- What is the rollback plan?

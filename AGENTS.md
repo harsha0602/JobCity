@@ -1,177 +1,230 @@
 # AGENTS.md
 
-## Migration Guardrails
+## Multi-Agent Development Rules
 
-Migration agents must preserve the current working app while moving JobCity toward the target production stack.
+### Core Rule
 
-Migration agents must use gstack for repo-aware execution and validation when available. Migration agents must use superpowers for architecture-heavy, high-risk, security-sensitive, database, CI/CD, auth, or conflict-resolution tasks. Do not perform large migration changes without first creating a small plan and preserving current app behavior.
+Multiple agents may work on JobCity, but every agent must preserve the current working app.
 
-Before making migration changes:
+No agent may make broad, unrelated changes while doing a scoped task.
 
-- Inspect the current branch, git status, recent commits, and relevant active work.
-- Identify files likely owned by Claude feature work and avoid editing them unless the migration requires it.
-- Keep changes small, reviewable, and independently revertible.
-- Prefer compatibility layers, adapters, and additive scaffolding over rewrites.
-- Do not remove Mongo-backed behavior until Postgres parity is proven and the migration phase explicitly allows removal.
-- Do not change public API contracts unless a compatibility adapter preserves existing frontend behavior.
-- Do not introduce secrets or production-only assumptions.
-- Document setup, environment variable, workflow, or command changes in the same PR.
+Every change must be small, reviewable, testable, and reversible.
 
-Before a migration PR is ready:
+### Role Categories
 
-- Run backend tests when backend behavior, infrastructure, or shared contracts are touched.
-- Run frontend tests when frontend behavior, build tooling, or shared contracts are touched.
-- Run lint, typecheck, build, Docker, or Compose validation when those surfaces are touched.
-- Confirm whether the app still starts, or document why startup was not relevant to a docs-only change.
-- Include test output and known failures in the PR summary.
-- Keep the final worktree limited to the migration scope.
+Agents should classify their task before making changes.
 
-Every migration PR must include a short validation summary:
+Use these categories:
 
-- Branch name
-- Files changed
-- Commands run
-- Tests passed
-- Known failures, if any
-- Whether the app still starts
-- Whether any public API behavior changed
+- Feature work: user-facing product behavior, UI, 3D interactions, job search flows, saved jobs, applications, visual improvements, bug fixes.
+- Migration work: database migration, repository abstraction, Postgres, Alembic, Vite, TypeScript migration, auth architecture, compatibility layers.
+- Infrastructure work: CI/CD, GitHub Actions, deployment, Docker, environment configuration, branch protection, preview/staging/production workflows.
+- Testing work: unit tests, integration tests, E2E tests, fixtures, mocks, coverage, test reliability.
+- Documentation work: README, AGENTS.md, migration docs, runbooks, architecture docs, PR checklists.
+- Review work: code review, security review, design review, migration review, PR readiness checks, regression risk analysis.
 
-If a migration must touch files likely affected by Claude feature work, document:
-
-- What file conflicts with feature work
-- Why the migration needs to touch it
-- What behavior must be preserved
-- What tests prove it was preserved
-
-## Claude Code Feature Development Rules
-
-These rules apply to Claude Code and other feature-development agents. They mirror the Migration Guardrails above so feature work and migration work can proceed in parallel without colliding. See `docs/migration/coordination.md` for the shared coordination model.
-
-### Role Boundary
-
-- Claude Code is responsible for feature development, UI/product behavior, bug fixes, and user-facing improvements.
-- Codex is responsible for stack migration, database migration, CI/CD, auth architecture, the Vite migration, the TypeScript migration strategy, and platform-level refactors.
-- Claude Code must not perform broad stack migration work unless explicitly asked.
+An agent may work across categories only when explicitly required by the task. Otherwise, keep scope narrow.
 
 ### Non-Regression Rule
 
-The current app must remain working after every Claude Code change. Do not break existing functionality while adding new features. Claude Code must preserve:
+The current app must remain working after every change.
 
-- existing API response expectations
-- existing route behavior
+Agents must preserve:
+
 - existing frontend behavior
-- current 3D city rendering behavior
-- current ingest behavior
-- current deployment assumptions
+- existing backend route behavior
+- existing API response shapes
+- existing 3D city rendering behavior
+- existing ingest behavior
+- existing deployment assumptions
+- existing environment variable behavior unless explicitly migrating it
 
-### Migration Awareness
+If a change intentionally modifies behavior, the PR must explain:
 
-Codex may introduce compatibility layers, repository interfaces, Postgres scaffolding, Vite scaffolding, new test infrastructure, and CI/CD changes. Claude Code must not remove or bypass those migration layers.
+- what changed
+- why it changed
+- what compatibility is preserved
+- how it was tested
+- how to roll back
 
-If a feature needs to touch migration-owned files, Claude Code must explain why and keep the change minimal. Migration-owned areas include:
+### Migration Safety Rule
 
-- database abstraction/repository layers
-- Alembic migrations
+Stack migration must be done through expand-and-contract steps.
+
+Do not perform a big-bang rewrite.
+
+Until the migration is complete:
+
+- Mongo-backed behavior must continue working.
+- New Postgres code must be added behind compatibility layers.
+- Existing APIs must keep working.
+- Existing frontend behavior must keep working.
+- Existing deployment must remain available.
+- New build/test infrastructure must not break current development flow.
+
+Migration-owned areas include:
+
+- repository/database abstraction
 - SQLAlchemy models
-- Postgres connection/session code
-- CI/CD workflows
-- Docker/deployment workflows
-- AGENTS.md migration rules
+- Alembic migrations
+- Postgres session/connection code
+- Mongo-to-Postgres parity tests
 - Vite/build tooling
 - TypeScript migration scaffolding
 - auth architecture
+- CI/CD workflows
+- Docker/deployment workflows
 
-### Feature Work Guidelines
+Agents doing feature work should avoid changing migration-owned areas unless required.
 
-For feature PRs:
+Agents doing migration work should avoid changing feature behavior unless required.
 
-- keep changes focused
-- avoid unrelated refactors
-- avoid large file moves
-- avoid formatting entire files unnecessarily
-- preserve existing props and API shapes unless intentionally changing them
-- add tests for new behavior where practical
-- update docs when setup or behavior changes
-- do not commit secrets
-- do not hardcode production URLs or credentials
+### Shared File Rule
 
-### Coordination With Codex
+Some files may be touched by many agents. Treat them carefully.
 
-Before making changes, Claude Code should inspect:
+Shared files include:
 
-- the current branch
-- the current diff
-- recent relevant files
-- whether files look migration-owned
-- whether the change overlaps with Codex migration work
+- AGENTS.md
+- README.md
+- package/dependency files
+- environment example files
+- Docker files
+- GitHub Actions workflows
+- app entry points
+- API client files
+- backend route files
+- shared types/schemas
+- major 3D scene files
 
-If there is overlap, prefer one of these:
+Before editing shared files, agents must:
 
-1. avoid the file
-2. add a small adapter/wrapper
-3. preserve both old and new behavior
-4. document the conflict clearly
+1. inspect the current file
+2. understand recent changes if available
+3. keep edits minimal
+4. avoid reformatting unrelated sections
+5. preserve existing instructions
+6. document the reason for the edit
+
+### Compatibility Layer Rule
+
+Prefer adapters and compatibility layers over disruptive rewrites.
+
+Examples:
+
+- Add a repository interface instead of rewriting routes directly.
+- Add a typed API wrapper instead of changing every component.
+- Add Postgres next to Mongo before switching reads.
+- Add Vite support carefully before removing CRA/Craco.
+- Add auth abstractions before replacing auth behavior.
+- Add tests before refactoring high-risk code.
+
+### Testing Rule
+
+Every meaningful change should include validation.
+
+Use the smallest useful test set first, then broader checks when risk is higher.
+
+Recommended checks:
+
+- backend unit tests
+- backend integration tests
+- frontend unit tests
+- frontend build
+- lint/typecheck
+- Docker build when Docker files change
+- E2E tests when user flows change
+- migration tests when database schema changes
+- API parity tests when storage backends change
+
+If tests cannot be run, the final response or PR summary must say why.
 
 ### gstack Usage
 
-Use `gstack` when available for repo-aware execution and validation. Claude Code should use `gstack` for:
+Use gstack when available for repo-aware execution and validation.
 
-- checking repo status before work
-- running frontend tests
-- running backend tests when feature changes touch backend behavior
+Agents should use gstack for:
+
+- inspecting repo status
+- checking the active branch
+- reviewing current diffs
+- running project commands
+- running tests
 - running build checks
-- validating Docker or local app startup when relevant
-- producing a clean final diff
-- confirming no unrelated files changed
+- validating Docker or local startup
+- preparing clean PR-ready changes
+- confirming unrelated files were not changed
 
-Before finishing a feature task, Claude Code should summarize:
+Before finishing, agents should summarize:
 
-- branch/status
 - files changed
 - commands run
-- tests passed or not run
+- tests/checks passed
+- tests/checks not run
 - known risks
-- whether Codex migration-owned files were touched
+- whether shared or migration-owned files were touched
 
 ### Superpowers Usage
 
-Use `superpowers` when available for high-risk reasoning. Claude Code should use `superpowers` for:
+Use superpowers when available for high-risk or architecture-heavy work.
 
-- feature changes touching many files
-- complex 3D rendering changes
-- performance-sensitive UI changes
-- auth-related feature work
-- API contract changes
-- feature work that overlaps with Codex migration work
-- resolving conflicts with Codex branches
-- diagnosing non-obvious test or CI failures
+Agents should use superpowers for:
 
-Use both `gstack` and `superpowers` when the feature work is high-impact and needs both reasoning and repo validation.
+- database schema design
+- migration strategy
+- auth/security decisions
+- CI/CD design
+- Vite/TypeScript migration strategy
+- resolving merge conflicts
+- diagnosing complex CI failures
+- performance-sensitive 3D/frontend changes
+- large refactors
+- cross-cutting changes touching many files
 
-### Feature PR Checklist
+Use both gstack and superpowers when a task needs both repo execution and deeper architectural reasoning.
 
-Every Claude feature PR should answer:
+### Branching Guidelines
 
-- What user-facing behavior changed?
-- What files changed?
-- Did this touch migration-owned code?
-- Did this preserve current API behavior?
-- Did this preserve current UI behavior?
-- What tests were run?
-- What could regress?
-- How can this be rolled back?
+Use clear branch names:
+
+- feature/<short-description>
+- fix/<short-description>
+- migration/<short-description>
+- infra/<short-description>
+- test/<short-description>
+- docs/<short-description>
+
+Keep branches focused.
+
+Do not combine unrelated feature, migration, infrastructure, testing, documentation, and formatting work in one branch.
+
+### PR Summary Requirements
+
+Every PR should include:
+
+- task category
+- what changed
+- why it changed
+- files changed
+- tests/checks run
+- tests/checks not run
+- compatibility impact
+- rollback plan
+- known risks
+- whether shared files were touched
+- whether migration-owned files were touched
 
 ### Do Not Do
 
-Claude Code must not:
+Agents must not:
 
-- replace Mongo with Postgres
-- remove Mongo code
-- migrate CRA to Vite
-- rewrite auth
-- rewrite CI/CD
-- change deployment workflows
-- delete Codex migration docs
-- change AGENTS.md migration rules except to clarify coordination
-- do large refactors bundled with feature work
-- remove compatibility layers introduced by Codex
+- perform broad rewrites without explicit instruction
+- remove working Mongo behavior before Postgres parity is proven
+- remove compatibility layers without approval
+- change deployment workflows as part of unrelated work
+- change package/dependency files unnecessarily
+- commit secrets
+- hardcode production URLs or credentials
+- reformat entire files unnecessarily
+- delete existing docs or rules without preserving useful content
+- bundle feature work with migration work unless explicitly required

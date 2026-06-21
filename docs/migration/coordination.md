@@ -1,41 +1,85 @@
 # Migration Coordination
 
-Codex migration work and Claude feature work should proceed in parallel without overwriting each other.
+JobCity is being developed by multiple agents in parallel. No agent owns the whole repo.
 
-## Ownership
+All work should be classified before edits begin:
 
-- Codex owns stack migration, CI/CD, database migration, auth architecture, build tooling migration, and compatibility layers.
-- Claude owns product features, UI behavior, application flows, bug fixes, and visual/user-facing improvements.
+- Feature work: product behavior, UI, 3D interactions, job search flows, applications, saved jobs, visual improvements, and bug fixes.
+- Migration work: database migration, repository abstraction, Postgres, Alembic, Vite, TypeScript, auth architecture, and compatibility layers.
+- Infrastructure work: CI/CD, GitHub Actions, deployment, Docker, environment configuration, and release workflows.
+- Testing work: unit tests, integration tests, E2E tests, fixtures, mocks, coverage, and test reliability.
+- Documentation work: README files, AGENTS.md, migration docs, runbooks, architecture docs, and PR checklists.
+- Review work: code review, security review, design review, migration review, and PR readiness checks.
 
-## Default Workflow
+## Coordination Rules
 
-1. Inspect branch, status, recent commits, and relevant files before editing.
-2. Identify whether the change touches migration-owned or feature-owned files.
-3. Prefer additive adapters, wrappers, and compatibility layers over rewrites.
-4. Preserve current Mongo-backed behavior and public API response shapes.
-5. Run the tests and checks relevant to the files changed.
+- Keep changes scoped and reversible.
+- Preserve current app behavior.
+- Preserve current API response shapes and frontend behavior unless the task explicitly changes them.
+- Preserve Mongo-backed behavior until Postgres parity is proven.
+- Use small expand-and-contract migration steps instead of big-bang rewrites.
+- Add compatibility layers before switching storage, auth, build tooling, or API behavior.
+- Feature work must avoid breaking migration scaffolding.
+- Migration work must avoid breaking product behavior.
+- Infrastructure work must avoid changing app behavior unless explicitly required.
+- Testing work must not make the local development flow harder to use.
+- Documentation work must not delete useful existing instructions.
 
-## Conflict Handling
+## Shared Files
 
-If a migration change must touch feature-owned files, document:
+Shared files require extra caution because many agents may need to edit them.
 
-- which files overlap
-- why the migration needs those files
-- what current behavior must be preserved
-- what tests or checks prove preservation
+Shared files include:
 
-If a feature change must touch migration-owned files, keep the edit narrow and document the same overlap in the PR.
+- AGENTS.md
+- README.md
+- package/dependency files
+- environment example files
+- Docker files
+- GitHub Actions workflows
+- app entry points
+- API client files
+- backend route files
+- shared types/schemas
+- major 3D scene files
 
-## PR Expectations
+Before editing shared files, inspect the current file, understand recent changes if available, keep the edit minimal, avoid unrelated formatting, and document the reason in the PR summary.
 
-Every migration PR should include:
+## Overlap Handling
 
-- branch name
-- files changed
-- commands run
-- tests passed
-- known failures
-- whether the app still starts
-- whether public API behavior changed
-- whether Claude feature work was touched
-- the compatibility guarantee protecting the current app
+When work crosses categories, document the overlap in the PR summary:
+
+- which categories are involved
+- which shared or migration-owned files changed
+- why the overlap was required
+- what behavior must be preserved
+- what tests or checks prove it was preserved
+- how to roll back if the change causes problems
+
+## Tooling
+
+Use gstack when available for repo-aware execution and validation:
+
+- inspect repo status
+- check the active branch
+- review diffs
+- run project commands
+- run tests and builds
+- validate Docker or local startup when relevant
+- confirm unrelated files were not changed
+- prepare PR-ready changes
+
+Use superpowers when available for high-risk reasoning:
+
+- database schema design
+- migration strategy
+- auth/security decisions
+- CI/CD design
+- Vite/TypeScript migration strategy
+- resolving merge conflicts
+- diagnosing complex CI failures
+- performance-sensitive 3D/frontend changes
+- large refactors
+- cross-cutting changes touching many files
+
+Use both tools when work needs both repo execution and deeper architectural reasoning.
