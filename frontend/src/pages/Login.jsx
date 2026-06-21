@@ -13,8 +13,8 @@ export default function LoginPage() {
   const location = useLocation();
   const returnTo = location.state?.returnTo || "/jobs-city";
 
-  const [email, setEmail] = useState("demo@jobcity.test");
-  const [password, setPassword] = useState("Demo123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -127,9 +127,6 @@ export default function LoginPage() {
         >
           Skip — continue as guest →
         </button>
-        <div className="mt-2 text-xs text-white/40 font-mono">
-          Demo · demo@jobcity.test · Demo123!
-        </div>
       </form>
     </div>
   );

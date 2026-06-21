@@ -1,0 +1,24 @@
+# Substituted by the nginx image entrypoint (envsubst) at container start.
+# ${PORT} and ${BACKEND_URL} come from the environment.
+server {
+    listen       ${PORT};
+    server_name  _;
+    root         /usr/share/nginx/html;
+    index        index.html;
+
+    # Reverse-proxy API calls to the backend (server-side → no browser CORS).
+    location /api/ {
+        proxy_pass         ${BACKEND_URL};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+
+    # SPA fallback so BrowserRouter deep links (e.g. /jobs-city) load the app.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

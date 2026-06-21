@@ -153,7 +153,9 @@ async def run_ingest(only_sources: list[str] | None = None) -> dict:
     # Persist
     job_stats = await _upsert_jobs(db, all_jobs)
     co_count = await _upsert_companies(db, cos, per_company_count)
-    expired = await _expire_stale_jobs(db, started)
+    # Safety: a fully-failed run (0 jobs fetched — e.g. the host IP got
+    # rate-limited/blocked) must NOT deactivate every job and empty the city.
+    expired = await _expire_stale_jobs(db, started) if all_jobs else 0
 
     elapsed_s = round(time.monotonic() - t0, 2)
     summary = {

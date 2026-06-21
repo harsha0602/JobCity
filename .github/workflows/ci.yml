@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Clean install in a fresh runner — fails the PR if a dependency (e.g. a
+      # vendor-hosted wheel) ever stops resolving, instead of failing on deploy.
+      - name: Install backend deps (clean)
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Backend tests
+        working-directory: backend
+        env:
+          JWT_SECRET: ci-test-secret-ci-test-secret-32x
+          MONGO_URL: mongodb://localhost:27017
+          DB_NAME: jobcity_test
+          CORS_ORIGINS: "*"
+        run: python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+      - name: Frontend tests
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npm test -- --watchAll=false
+      - name: Frontend build
+        working-directory: frontend
+        env:
+          REACT_APP_BACKEND_URL: ""
+        run: npm run build
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t jobcity-backend ./backend
+      - name: Build frontend image
+        run: docker build -t jobcity-frontend ./frontend
