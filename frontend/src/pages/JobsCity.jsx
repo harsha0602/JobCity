@@ -1,13 +1,11 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import JobsCityScene from "@/components/three/JobsCityScene";
 import { api } from "@/lib/api";
+import JobDetailPopup from "@/components/JobDetailPopup";
 import { Input } from "@/components/ui/input";
 import { project } from "@/lib/projection";
 import { floorsToHeight } from "@/lib/buildingTex";
 import { toast } from "sonner";
-
-const SKYSCRAPER_FLOOR_THRESHOLD = 8;
 
 // Mirror the spiral layout used inside CompanyBuildings so we can fly the
 // camera to the *exact* tower of a chosen company from outside the scene.
@@ -131,100 +129,13 @@ export default function JobsCityPage() {
         </div>
       </div>
 
-      <CompanySidePanel
+      <JobDetailPopup
         company={selected}
         jobs={jobs}
-        loadingJobs={loadingJobs}
+        loading={loadingJobs}
         query={query}
         onClose={() => setSelected(null)}
       />
-    </div>
-  );
-}
-
-function CompanySidePanel({ company, jobs, loadingJobs, query, onClose }) {
-  if (!company) return null;
-  const filteredJobs = jobs.filter(
-    (j) =>
-      !query ||
-      j.title.toLowerCase().includes(query.toLowerCase()) ||
-      j.company_name.toLowerCase().includes(query.toLowerCase())
-  );
-  const isSkyscraper = company.floors >= SKYSCRAPER_FLOOR_THRESHOLD;
-
-  return (
-    <div
-      data-testid="job-detail-panel"
-      className="pointer-events-auto fixed top-20 right-4 z-30 w-[360px] max-h-[calc(100vh-100px)] overflow-y-auto rounded-xl bg-[#1a0a14]/95 backdrop-blur-2xl border text-white animate-in fade-in slide-in-from-right-4 duration-300"
-      style={{ borderColor: `${company.color}33` }}
-    >
-      <button
-        onClick={onClose}
-        data-testid="company-panel-close-btn"
-        className="absolute top-3 right-3 label-mono text-white/40 hover:text-white text-[10px] tracking-widest"
-      >
-        ESC ×
-      </button>
-
-      <div className="px-5 pt-6 pb-5">
-        <div className="label-mono" style={{ color: company.color }}>
-          {company.city.toUpperCase()}, {company.state}
-        </div>
-        <div className="font-[Unbounded] text-2xl font-black mt-1 leading-tight">
-          {company.name}
-        </div>
-        <div className="font-mono text-xs text-white/60 mt-2">
-          {company.floors} OPEN {company.floors === 1 ? "ROLE" : "ROLES"} IN {company.city.toUpperCase()}
-          {isSkyscraper && " · SKYSCRAPER"}
-        </div>
-
-        <div className="mt-4 flex items-center gap-2">
-          <span
-            className="w-3 h-3 rounded-full"
-            style={{ background: company.color, boxShadow: `0 0 8px ${company.color}` }}
-          />
-          <span className="font-mono text-[10px] tracking-widest text-white/45 uppercase">
-            COMPANY · {company.floors} {company.floors === 1 ? "ROLE" : "ROLES"}
-          </span>
-        </div>
-      </div>
-
-      <div className="px-5 pb-5 space-y-2.5">
-        <div className="label-mono text-white/45 mb-1">OPEN ROLES</div>
-        {loadingJobs && <div className="text-white/40 text-sm font-mono">Loading…</div>}
-        {!loadingJobs && filteredJobs.length === 0 && (
-          <div className="text-white/40 text-sm font-mono">No jobs found.</div>
-        )}
-        {filteredJobs.map((j) => (
-          <Link
-            key={j.job_id}
-            to={`/jobs/${j.job_id}`}
-            data-testid={`job-row-${j.job_id}`}
-            className="block rounded-lg p-3 hover:bg-white/5 transition border border-white/5"
-          >
-            <div className="font-semibold text-sm leading-snug">{j.title}</div>
-            <div className="font-mono text-[11px] text-white/50 mt-0.5">
-              {j.city}, {j.state} · {j.remote ? "REMOTE OK" : "ONSITE"}
-            </div>
-            {j.salary_min && (
-              <div className="font-mono text-[11px] mt-1" style={{ color: "#FFB24C" }}>
-                ${Math.round(j.salary_min / 1000)}K – ${Math.round(j.salary_max / 1000)}K
-              </div>
-            )}
-          </Link>
-        ))}
-      </div>
-
-      <div className="px-5 pb-5">
-        <Button
-          data-testid="close-panel-btn"
-          variant="ghost"
-          onClick={onClose}
-          className="w-full text-white/70 hover:bg-white/5"
-        >
-          Close
-        </Button>
-      </div>
     </div>
   );
 }
