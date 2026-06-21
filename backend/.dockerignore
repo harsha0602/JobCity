@@ -12,3 +12,4 @@ test_reports/
 .git
 .gitignore
 requirements-ai.txt
+requirements-dev.txt
